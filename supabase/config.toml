@@ -1,0 +1,65 @@
+project_id = "project"
+
+[api]
+enabled = true
+port = 55000
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[api.tls]
+enabled = false
+
+[db]
+port = 55432
+shadow_port = 55433
+health_timeout = "2m"
+major_version = 17
+
+[db.pooler]
+enabled = false
+port = 55434
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[db.migrations]
+enabled = true
+schema_paths = []
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 55001
+api_url = "http://127.0.0.1"
+
+[inbucket]
+enabled = true
+port = 55002
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]
+jwt_expiry = 3600
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+inspector_port = 8083
+deno_version = 2
+
+[analytics]
+enabled = true
+port = 55003
+backend = "postgres"
