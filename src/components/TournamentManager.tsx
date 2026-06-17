@@ -9,7 +9,6 @@ import {
   TournamentSetScore,
   TournamentZone
 } from '../types';
-import { formatDate } from '../utils/timeSlots';
 
 interface TournamentManagerProps {
   tournaments: Tournament[];
@@ -20,6 +19,13 @@ interface TournamentManagerProps {
 }
 
 const emptySet = (): TournamentSetScore => ({ pair1Games: 0, pair2Games: 0 });
+
+const formatShortDate = (date: string): string => {
+  const [year, month, day] = date.split('-');
+  if (!year || !month || !day) return date;
+
+  return `${day}/${month}/${year.slice(-2)}`;
+};
 
 const createEmptyTournament = (): Omit<Tournament, 'id' | 'createdAt'> => ({
   name: 'Nuevo torneo',
@@ -313,6 +319,14 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
     updateDraft({
       playoffRounds,
       matches: draft.matches.filter(match => !(match.stage === 'playoff' && match.roundId === roundId))
+    });
+  };
+
+  const updateRoundName = (roundId: string, name: string) => {
+    updateDraft({
+      playoffRounds: draft.playoffRounds.map(round =>
+        round.id === roundId ? { ...round, name } : round
+      )
     });
   };
 
@@ -618,7 +632,7 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
     }
 
     const roundName = tournament.playoffRounds.find(round => round.id === match.roundId)?.name;
-    return roundName ? `Play off - ${roundName}` : 'Play off';
+    return roundName || 'Sin ronda';
   };
   const getMatchPairsName = (match: TournamentMatch) => {
     const pair1Name = match.pair1Id ? pairNameById.get(match.pair1Id) : 'Pareja 1 pendiente';
@@ -952,24 +966,24 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
               </div>
             ) : (
               <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                <table className="w-full min-w-[720px]">
+                <table className="w-full table-auto">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Zona</th>
+                      <th className="w-px whitespace-nowrap px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Zona</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Parejas</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Fecha</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Hora</th>
+                      <th className="w-px whitespace-nowrap px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Fecha</th>
+                      <th className="w-px whitespace-nowrap px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Hora</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {scheduledMatches.map(match => (
                       <tr key={match.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{getMatchZoneName(match)}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">{getMatchZoneName(match)}</td>
                         <td className="px-4 py-3 text-sm text-gray-700">{getMatchPairsName(match)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
-                          {match.scheduledDate ? formatDate(match.scheduledDate) : 'Sin fecha'}
+                        <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-700">
+                          {match.scheduledDate ? formatShortDate(match.scheduledDate) : 'Sin fecha'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{match.scheduledTime || 'Sin hora'}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-700">{match.scheduledTime || 'Sin hora'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1074,7 +1088,19 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
             .map(round => (
               <div key={round.id} className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <h4 className="font-semibold text-gray-800">{round.name} ({round.matchCount} partidos)</h4>
+                  {isAdmin ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+                      <input
+                        value={round.name}
+                        onChange={(event) => updateRoundName(round.id, event.target.value)}
+                        className="min-w-0 border border-gray-300 rounded-lg px-3 py-2 font-semibold text-gray-800"
+                        aria-label="Nombre de ronda"
+                      />
+                      <span className="text-sm text-gray-500 whitespace-nowrap">({round.matchCount} partidos)</span>
+                    </div>
+                  ) : (
+                    <h4 className="font-semibold text-gray-800">{round.name} ({round.matchCount} partidos)</h4>
+                  )}
                   {isAdmin && (
                     <button
                       type="button"
