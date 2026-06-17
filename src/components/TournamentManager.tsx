@@ -9,6 +9,7 @@ import {
   TournamentSetScore,
   TournamentZone
 } from '../types';
+import { formatDate } from '../utils/timeSlots';
 
 interface TournamentManagerProps {
   tournaments: Tournament[];
@@ -251,6 +252,28 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
     });
   };
 
+  const removePairFromZone = (pairId: string, zoneId: string) => {
+    updateDraft({
+      zones: draft.zones.map(zone =>
+        zone.id === zoneId
+          ? { ...zone, pairIds: zone.pairIds.filter(id => id !== pairId) }
+          : zone
+      ),
+      matches: draft.matches.map(match => {
+        if (match.stage !== 'zone' || match.zoneId !== zoneId) return match;
+
+        const updated = {
+          ...match,
+          pair1Id: match.pair1Id === pairId ? undefined : match.pair1Id,
+          pair2Id: match.pair2Id === pairId ? undefined : match.pair2Id,
+          winnerPairId: match.winnerPairId === pairId ? undefined : match.winnerPairId
+        };
+
+        return { ...updated, winnerPairId: getWinnerPairId(updated) };
+      })
+    });
+  };
+
   const addRound = () => {
     const round: TournamentPlayoffRound = {
       id: crypto.randomUUID(),
@@ -269,6 +292,27 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
     updateDraft({
       playoffRounds: [...draft.playoffRounds, round],
       matches: [...draft.matches, ...roundMatches]
+    });
+  };
+
+  const removeRound = (roundId: string) => {
+    const round = draft.playoffRounds.find(item => item.id === roundId);
+    const roundMatches = draft.matches.filter(match => match.stage === 'playoff' && match.roundId === roundId);
+
+    if (!round) return;
+
+    if (!confirm(`Seguro que quieres eliminar la ronda "${round.name}"?\n\nTambien se eliminaran sus ${roundMatches.length} partidos, horarios y resultados.`)) {
+      return;
+    }
+
+    const playoffRounds = draft.playoffRounds
+      .filter(item => item.id !== roundId)
+      .sort((a, b) => a.order - b.order)
+      .map((item, index) => ({ ...item, order: index + 1 }));
+
+    updateDraft({
+      playoffRounds,
+      matches: draft.matches.filter(match => !(match.stage === 'playoff' && match.roundId === roundId))
     });
   };
 
@@ -565,6 +609,36 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
   const tournament = readOnlyTournament;
   if (!tournament) return null;
 
+  const unassignedZonePairs = tournament.pairs.filter(pair =>
+    !tournament.zones.some(zone => zone.pairIds.includes(pair.id))
+  );
+  const getMatchZoneName = (match: TournamentMatch) => {
+    if (match.stage === 'zone') {
+      return tournament.zones.find(zone => zone.id === match.zoneId)?.name || 'Zona';
+    }
+
+    const roundName = tournament.playoffRounds.find(round => round.id === match.roundId)?.name;
+    return roundName ? `Play off - ${roundName}` : 'Play off';
+  };
+  const getMatchPairsName = (match: TournamentMatch) => {
+    const pair1Name = match.pair1Id ? pairNameById.get(match.pair1Id) : 'Pareja 1 pendiente';
+    const pair2Name = match.pair2Id ? pairNameById.get(match.pair2Id) : 'Pareja 2 pendiente';
+    return `${pair1Name || 'Pareja 1 pendiente'} vs ${pair2Name || 'Pareja 2 pendiente'}`;
+  };
+  const scheduledMatches = tournament.matches
+    .slice()
+    .sort((a, b) => {
+      const dateA = a.scheduledDate || '9999-12-31';
+      const dateB = b.scheduledDate || '9999-12-31';
+      const dateComparison = dateA.localeCompare(dateB);
+
+      if (dateComparison !== 0) return dateComparison;
+
+      const timeA = a.scheduledTime || '99:99';
+      const timeB = b.scheduledTime || '99:99';
+      return timeA.localeCompare(timeB);
+    });
+
   const tabs = [
     { id: 'pairs' as const, label: 'Parejas', count: tournament.pairs.length },
     { id: 'zones' as const, label: 'Zonas y resultados', count: tournament.zones.length },
@@ -814,7 +888,10 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
                         className="border border-gray-300 rounded-lg px-3 py-2 w-full"
                       >
                         <option value="">Agregar pareja a esta zona</option>
-                        {tournament.pairs.map(pair => (
+                        {unassignedZonePairs.length === 0 && (
+                          <option value="" disabled>No quedan parejas sin zona</option>
+                        )}
+                        {unassignedZonePairs.map(pair => (
                           <option key={pair.id} value={pair.id}>{pairNameById.get(pair.id)}</option>
                         ))}
                       </select>
@@ -822,8 +899,19 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
 
                     <div className="flex flex-wrap gap-2">
                       {zone.pairIds.map(pairId => (
-                        <span key={pairId} className="bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-1 text-sm">
+                        <span key={pairId} className="inline-flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-1 text-sm">
                           {pairNameById.get(pairId)}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => removePairFromZone(pairId, zone.id)}
+                              className="text-green-700 hover:text-red-600"
+                              aria-label="Quitar pareja de la zona"
+                              title="Quitar pareja de la zona"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -857,7 +945,39 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
             <span className="text-sm text-gray-500">{tournament.matches.length} partidos</span>
           </div>
 
-          <div className="space-y-5">
+          {!isAdmin ? (
+            scheduledMatches.length === 0 ? (
+              <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-4">
+                No hay partidos cargados para este torneo.
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="w-full min-w-[720px]">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Zona</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Parejas</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Fecha</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Hora</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {scheduledMatches.map(match => (
+                      <tr key={match.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{getMatchZoneName(match)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{getMatchPairsName(match)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          {match.scheduledDate ? formatDate(match.scheduledDate) : 'Sin fecha'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{match.scheduledTime || 'Sin hora'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : (
+            <div className="space-y-5">
             <div className="border border-gray-200 rounded-lg p-4 space-y-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
@@ -928,6 +1048,7 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
               )}
             </div>
           </div>
+          )}
         </section>
       )}
 
@@ -952,7 +1073,20 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
             .sort((a, b) => a.order - b.order)
             .map(round => (
               <div key={round.id} className="space-y-3">
-                <h4 className="font-semibold text-gray-800">{round.name} ({round.matchCount} partidos)</h4>
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="font-semibold text-gray-800">{round.name} ({round.matchCount} partidos)</h4>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => removeRound(round.id)}
+                      className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-700 font-medium"
+                      title="Eliminar ronda"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Eliminar ronda
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {tournament.matches
                     .filter(match => match.stage === 'playoff' && match.roundId === round.id)
