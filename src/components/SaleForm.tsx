@@ -11,7 +11,7 @@ interface SaleFormProps {
   categories: ConsumableCategory[];
   players: PlayerProfile[];
   sale?: Sale;
-  onSave: (sale: Omit<Sale, 'id' | 'createdAt'>) => void;
+  onSave: (sale: Omit<Sale, 'id' | 'createdAt'>) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -38,11 +38,14 @@ const SaleForm: React.FC<SaleFormProps> = ({
 
   const [showPlayerSearch, setShowPlayerSearch] = useState(false);
   const [showConsumableSearch, setShowConsumableSearch] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const totalAmount = formData.items.reduce((sum, item) => sum + item.subtotal, 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSaving) return;
     
     if (formData.items.length === 0) {
       alert('Debe agregar al menos un producto');
@@ -54,7 +57,7 @@ const SaleForm: React.FC<SaleFormProps> = ({
       return;
     }
 
-    const sale: Omit<Sale, 'id' | 'createdAt'> = {
+    const saleToSave: Omit<Sale, 'id' | 'createdAt'> = {
       type: sale?.type || 'direct',
       date: sale?.date || getArgentinaDateString(),
       time: sale?.time || getArgentinaTimeString(),
@@ -73,7 +76,12 @@ const SaleForm: React.FC<SaleFormProps> = ({
       courtName: sale?.courtName
     };
 
-    onSave(sale);
+    try {
+      setIsSaving(true);
+      await onSave(saleToSave);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePlayerSelect = (player: PlayerProfile) => {
@@ -384,10 +392,11 @@ const SaleForm: React.FC<SaleFormProps> = ({
                 </button>
                 <button
                   type="submit"
+                  disabled={isSaving}
                   className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
                 >
                   <Save className="w-5 h-5" />
-                  <span>{sale ? 'Actualizar Venta' : 'Registrar Venta'}</span>
+                  <span>{isSaving ? 'Guardando...' : sale ? 'Actualizar Venta' : 'Registrar Venta'}</span>
                 </button>
               </div>
             </form>
