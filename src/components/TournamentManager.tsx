@@ -885,6 +885,15 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
               {tournament.zones
                 .filter(zone => zone.id === selectedZoneId)
                 .map(zone => (
+                  !isAdmin ? (
+                    <div key={zone.id} className="space-y-3">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        {tournament.matches
+                          .filter(match => match.stage === 'zone' && match.zoneId === zone.id)
+                          .map(match => renderScoreCard(match, zone.pairIds))}
+                      </div>
+                    </div>
+                  ) : (
                   <div key={zone.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
                     <input
                       value={zone.name}
@@ -946,6 +955,7 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
                         .map(match => renderMatch(match, zone.pairIds))
                     )}
                   </div>
+                  )
                 ))}
             </div>
           )}
