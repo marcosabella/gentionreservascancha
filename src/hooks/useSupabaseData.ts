@@ -166,6 +166,7 @@ export const useSupabaseData = (enabled = true) => {
         })),
         consumptions: (booking.booking_consumptions || []).map((bc: any) => ({
           id: bc.id,
+          consumableId: bc.consumable_id,
           name: bc.name,
           price: bc.price,
           quantity: bc.quantity,

@@ -1,12 +1,14 @@
-import React from 'react';
-import { ShoppingCart, Edit, Trash2, Plus, Package, Utensils, Coffee, Tag, Eye, Dumbbell, Gamepad2, Shirt, Zap, Droplets, Apple, Sandwich, Pizza, Cookie, Wine, Beer, Gift, Wrench, Shield, Heart } from 'lucide-react';
-import { ConsumableItem, ConsumableCategory } from '../types';
+import React, { useState } from 'react';
+import { ShoppingCart, Edit, Trash2, Plus, Package, Utensils, Coffee, Tag, Dumbbell, Gamepad2, Shirt, Zap, Droplets, Apple, Sandwich, Pizza, Cookie, Wine, Beer, Gift, Wrench, Shield, Heart, Search, Calendar } from 'lucide-react';
+import { Booking, ConsumableItem, ConsumableCategory, Sale } from '../types';
 import { formatCurrency } from '../utils/timeSlots';
 import { getCategoryColor } from '../data/categories';
 
 interface ConsumableListProps {
   consumables: ConsumableItem[];
   categories: ConsumableCategory[];
+  sales: Sale[];
+  bookings: Booking[];
   onEditConsumable: (consumable: ConsumableItem) => void;
   onDeleteConsumable: (consumableId: string) => void;
   onAddConsumable: () => void;
@@ -21,10 +23,16 @@ const iconMap = {
 const ConsumableList: React.FC<ConsumableListProps> = ({ 
   consumables, 
   categories,
+  sales,
+  bookings,
   onEditConsumable, 
   onDeleteConsumable, 
   onAddConsumable 
 }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   const getCategoryIcon = (categoryName: string) => {
     const category = categories.find(cat => cat.name === categoryName);
     if (category?.defaultIcon && iconMap[category.defaultIcon as keyof typeof iconMap]) {
@@ -55,6 +63,60 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
     ...category,
     count: consumables.filter(c => c.category === category.name).length
   }));
+
+  const normalizedSearch = searchTerm.trim().toLocaleLowerCase('es');
+  const filteredConsumables = consumables.filter(consumable =>
+    !normalizedSearch ||
+    consumable.description.toLocaleLowerCase('es').includes(normalizedSearch) ||
+    consumable.name.toLocaleLowerCase('es').includes(normalizedSearch)
+  );
+
+  const isDateInRange = (date: string) =>
+    (!dateFrom || date >= dateFrom) && (!dateTo || date <= dateTo);
+
+  const completedBookings = bookings.filter(booking =>
+    booking.status === 'completed' && isDateInRange(booking.date)
+  );
+
+  const matchesBookingConsumption = (
+    consumption: Booking['consumptions'][number],
+    consumable: ConsumableItem
+  ) => {
+    if (consumption.consumableId) {
+      return consumption.consumableId === consumable.id ||
+        consumption.consumableId.startsWith(`${consumable.id}-`);
+    }
+
+    // Compatibilidad con consumos creados antes de guardar consumableId por separado.
+    return consumption.id.startsWith(`${consumable.id}-`) ||
+      consumption.name.trim().toLocaleLowerCase('es') === consumable.name.trim().toLocaleLowerCase('es');
+  };
+
+  const soldQuantityByConsumable = new Map<string, number>();
+
+  sales
+    .filter(sale => sale.type === 'direct' && isDateInRange(sale.date))
+    .forEach(sale => sale.items.forEach(item => {
+      soldQuantityByConsumable.set(
+        item.consumableId,
+        (soldQuantityByConsumable.get(item.consumableId) || 0) + item.quantity
+      );
+    }));
+
+  completedBookings.forEach(booking => booking.consumptions.forEach(consumption => {
+    const consumable = consumables.find(item => matchesBookingConsumption(consumption, item));
+    if (consumable) {
+      soldQuantityByConsumable.set(
+        consumable.id,
+        (soldQuantityByConsumable.get(consumable.id) || 0) + consumption.quantity
+      );
+    }
+  }));
+
+  const totalUnitsSold = consumables.reduce(
+    (total, consumable) => total + (soldQuantityByConsumable.get(consumable.id) || 0),
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -102,6 +164,54 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
         </div>
       </div>
 
+      {/* Filtros de productos e histórico de ventas */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <label className="text-sm text-gray-600">
+            <span className="block mb-1">Producto</span>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Buscar por descripción o nombre..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+            </div>
+          </label>
+          <label className="text-sm text-gray-600">
+            <span className="block mb-1">Ventas desde</span>
+            <input
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(event) => setDateFrom(event.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            />
+          </label>
+          <label className="text-sm text-gray-600">
+            <span className="block mb-1">Ventas hasta</span>
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(event) => setDateTo(event.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            />
+          </label>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
+          <div className="flex items-center text-gray-600">
+            <Calendar className="w-4 h-4 mr-2" />
+            <span>{dateFrom || dateTo ? 'Histórico para el período seleccionado' : 'Histórico completo'}</span>
+          </div>
+          <div className="font-semibold text-green-700">
+            Unidades vendidas: {totalUnitsSold}
+          </div>
+        </div>
+      </div>
+
       {/* Consumables Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
@@ -121,12 +231,15 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
                   Estado
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Cantidad vendida
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Acciones
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {consumables.map(consumable => (
+              {filteredConsumables.map(consumable => (
                 <tr key={consumable.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -157,6 +270,12 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
                       </span>
                     </div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-lg font-bold text-gray-900">
+                      {soldQuantityByConsumable.get(consumable.id) || 0}
+                    </div>
+                    <div className="text-xs text-gray-500">unidades</div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                     <button
                       onClick={() => onEditConsumable(consumable)}
@@ -179,11 +298,15 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
           </table>
         </div>
 
-        {consumables.length === 0 && (
+        {filteredConsumables.length === 0 && (
           <div className="text-center py-12">
             <ShoppingCart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay consumibles registrados</h3>
-            <p className="text-gray-600">Comienza agregando tu primer consumible</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {searchTerm ? 'No se encontraron consumibles' : 'No hay consumibles registrados'}
+            </h3>
+            <p className="text-gray-600">
+              {searchTerm ? 'Probá con otra descripción o nombre' : 'Comienza agregando tu primer consumible'}
+            </p>
           </div>
         )}
       </div>

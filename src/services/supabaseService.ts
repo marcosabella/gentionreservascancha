@@ -408,7 +408,7 @@ export const bookingsService = {
         .insert(
           booking.consumptions.map(consumption => ({
             booking_id: bookingData.id,
-            consumable_id: consumption.id,
+            consumable_id: consumption.consumableId || consumption.id,
             name: consumption.name,
             price: consumption.price,
             quantity: consumption.quantity,
@@ -488,7 +488,7 @@ export const bookingsService = {
           .insert(
             booking.consumptions.map(consumption => ({
               booking_id: id,
-              consumable_id: consumption.id,
+              consumable_id: consumption.consumableId || consumption.id,
               name: consumption.name,
               price: consumption.price,
               quantity: consumption.quantity,

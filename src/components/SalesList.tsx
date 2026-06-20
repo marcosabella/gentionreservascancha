@@ -55,7 +55,7 @@ const SalesList: React.FC<SalesListProps> = ({
     },
     items: booking.consumptions.map(consumption => ({
       id: consumption.id,
-      consumableId: consumption.id,
+      consumableId: consumption.consumableId || consumption.id,
       name: consumption.name,
       price: consumption.price,
       quantity: consumption.quantity,

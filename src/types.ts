@@ -46,6 +46,7 @@ export interface PaymentSplit {
 
 export interface Consumption {
   id: string;
+  consumableId?: string;
   name: string;
   price: number;
   quantity: number;

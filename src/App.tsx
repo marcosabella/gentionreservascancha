@@ -1614,6 +1614,8 @@ function App() {
             <ConsumableList
               consumables={currentConsumables}
               categories={currentCategories}
+              sales={currentSales}
+              bookings={currentBookings}
               onEditConsumable={(consumable) => {
                 setEditingConsumable(consumable);
                 setShowConsumableForm(true);

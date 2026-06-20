@@ -207,6 +207,7 @@ const BookingEditForm: React.FC<BookingEditFormProps> = ({
   const handleConsumableSelect = (consumable: ConsumableItem) => {
     const newConsumption: Consumption = {
       id: `${consumable.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      consumableId: consumable.id,
       name: consumable.name,
       price: consumable.price,
       quantity: 1,
