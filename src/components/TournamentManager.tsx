@@ -47,7 +47,7 @@ const getWinnerPairId = (match: TournamentMatch) => {
   return undefined;
 };
 
-type PairSearchTarget = 'player1' | 'player2' | 'complete';
+type PairSearchTarget = 'player1' | 'player2' | 'complete' | 'editPlayer1' | 'editPlayer2';
 
 const TournamentManager: React.FC<TournamentManagerProps> = ({
   tournaments,
@@ -156,6 +156,37 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
   };
 
   const selectPairSearchPlayer = (player: PlayerProfile) => {
+    if ((pairSearchTarget === 'editPlayer1' || pairSearchTarget === 'editPlayer2') && completingPairId) {
+      const pair = draft.pairs.find(item => item.id === completingPairId);
+
+      if (!pair) return;
+
+      const isEditingPlayer1 = pairSearchTarget === 'editPlayer1';
+      const otherPlayerId = isEditingPlayer1 ? pair.player2Id : pair.player1Id;
+
+      if (player.id === otherPlayerId) {
+        alert('Selecciona dos jugadores distintos.');
+        return;
+      }
+
+      if (isPlayerAlreadyInTournament(player.id, completingPairId)) {
+        alert('Este jugador ya integra una pareja del torneo.');
+        return;
+      }
+
+      updateDraft({
+        pairs: draft.pairs.map(item => {
+          if (item.id !== completingPairId) return item;
+
+          return isEditingPlayer1
+            ? { ...item, player1Id: player.id, player1Name: player.name }
+            : { ...item, player2Id: player.id, player2Name: player.name };
+        })
+      });
+      closePairSearch();
+      return;
+    }
+
     if (pairSearchTarget === 'complete' && completingPairId) {
       const pair = draft.pairs.find(item => item.id === completingPairId);
 
@@ -215,6 +246,14 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
 
       if (pairSearchTarget === 'player2') {
         return player.id !== pairPlayer1 && !isPlayerAlreadyInTournament(player.id);
+      }
+
+      if (pairSearchTarget === 'editPlayer1' || pairSearchTarget === 'editPlayer2') {
+        const pair = draft.pairs.find(item => item.id === completingPairId);
+        const otherPlayerId = pairSearchTarget === 'editPlayer1' ? pair?.player2Id : pair?.player1Id;
+
+        return player.id !== otherPlayerId &&
+          !isPlayerAlreadyInTournament(player.id, completingPairId || undefined);
       }
 
       return player.id !== draft.pairs.find(pair => pair.id === completingPairId)?.player1Id &&
@@ -813,7 +852,25 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
                   )}
                 </div>
                 {isAdmin && (
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openPairSearch('editPlayer1', pair.id)}
+                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      <Search className="w-4 h-4" />
+                      Cambiar principal
+                    </button>
+                    {pair.player2Id && (
+                      <button
+                        type="button"
+                        onClick={() => openPairSearch('editPlayer2', pair.id)}
+                        className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        <Search className="w-4 h-4" />
+                        Cambiar companero
+                      </button>
+                    )}
                     {!pair.player2Id && (
                       <button
                         onClick={() => openPairSearch('complete', pair.id)}
