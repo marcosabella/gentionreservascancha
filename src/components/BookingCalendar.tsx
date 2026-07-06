@@ -270,6 +270,8 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
               className={`p-4 rounded-lg border-2 text-center transition-all ${
                 slot.available
                   ? 'border-green-200 bg-green-50 hover:bg-green-100 cursor-pointer'
+                  : unavailability
+                  ? 'border-red-200 bg-red-50 hover:bg-red-100 cursor-pointer'
                   : isCompletedBooking
                   ? 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100 cursor-pointer'
                   : 'border-red-200 bg-red-50 hover:bg-red-100 cursor-pointer'
@@ -289,6 +291,18 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
               
               {slot.available ? (
                 <span className="text-xs text-green-600">Disponible</span>
+              ) : unavailability ? (
+                <div className="text-xs text-red-600">
+                  <div className="font-medium">No disponible</div>
+                  <div className="mt-1 space-y-1">
+                    <div className="text-xs text-gray-600">
+                      {unavailability.title}
+                    </div>
+                    <div className="text-xs text-red-700 font-medium">
+                      {getReasonLabel(unavailability.reason)}
+                    </div>
+                  </div>
+                </div>
               ) : isCompletedBooking ? (
                 <div className="text-xs text-yellow-700">
                   <div className="font-medium">Finalizado</div>
@@ -319,15 +333,6 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
                       )}
                       <div className="text-xs text-blue-600 font-medium">
                         Click para gestionar
-                      </div>
-                    </div>
-                  ) : unavailability ? (
-                    <div className="mt-1 space-y-1">
-                      <div className="text-xs text-gray-600">
-                        {unavailability.title}
-                      </div>
-                      <div className="text-xs text-red-700 font-medium">
-                        {getReasonLabel(unavailability.reason)}
                       </div>
                     </div>
                   ) : recurringBooking && (

@@ -521,7 +521,7 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
         </select>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {match.sets.map((set, index) => (
           <div key={index} className="bg-gray-50 rounded-lg p-2">
             <p className="text-xs font-medium text-gray-500 mb-2">Set {index + 1}</p>
@@ -532,7 +532,7 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
                 value={set.pair1Games}
                 onChange={(event) => updateSet(match, index, 'pair1Games', Number(event.target.value))}
                 disabled={!isAdmin}
-                className="w-full border border-gray-300 rounded px-2 py-1 text-center"
+                className="w-full min-w-14 border border-gray-300 rounded px-2 py-1 text-center"
               />
               <span className="text-gray-400">-</span>
               <input
@@ -541,7 +541,7 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
                 value={set.pair2Games}
                 onChange={(event) => updateSet(match, index, 'pair2Games', Number(event.target.value))}
                 disabled={!isAdmin}
-                className="w-full border border-gray-300 rounded px-2 py-1 text-center"
+                className="w-full min-w-14 border border-gray-300 rounded px-2 py-1 text-center"
               />
             </div>
           </div>
