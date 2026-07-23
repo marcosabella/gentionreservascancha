@@ -1178,21 +1178,18 @@ function App() {
         if (tournamentData.id) {
           const updatedTournament = await tournamentsService.update(tournamentData.id, tournamentData);
           setDbTournaments(prev => prev.map(tournament =>
-            tournament.id === tournamentData.id ? updatedTournament : { ...tournament, isActive: tournamentData.isActive ? false : tournament.isActive }
+            tournament.id === tournamentData.id ? updatedTournament : tournament
           ));
         } else {
           const newTournament = await tournamentsService.create(tournamentData);
-          setDbTournaments(prev => [
-            ...prev.map(tournament => ({ ...tournament, isActive: tournamentData.isActive ? false : tournament.isActive })),
-            newTournament
-          ]);
+          setDbTournaments(prev => [...prev, newTournament]);
         }
       } else {
         if (tournamentData.id) {
           setLocalTournaments(prev => prev.map(tournament =>
             tournament.id === tournamentData.id
               ? { ...tournament, ...tournamentData }
-              : { ...tournament, isActive: tournamentData.isActive ? false : tournament.isActive }
+              : tournament
           ));
         } else {
           const newTournament: Tournament = {
@@ -1200,10 +1197,7 @@ function App() {
             id: Date.now().toString(),
             createdAt: new Date().toISOString()
           };
-          setLocalTournaments(prev => [
-            ...prev.map(tournament => ({ ...tournament, isActive: tournamentData.isActive ? false : tournament.isActive })),
-            newTournament
-          ]);
+          setLocalTournaments(prev => [...prev, newTournament]);
         }
       }
     } catch (error) {

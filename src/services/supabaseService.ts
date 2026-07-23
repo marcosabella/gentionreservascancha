@@ -670,13 +670,6 @@ const mapTournament = (data: any): Tournament => ({
 
 export const tournamentsService = {
   async create(tournament: Omit<Tournament, 'id' | 'createdAt'>) {
-    if (tournament.isActive) {
-      await supabase
-        .from('tournaments')
-        .update({ is_active: false })
-        .eq('is_active', true);
-    }
-
     const { data, error } = await supabase
       .from('tournaments')
       .insert({
@@ -695,13 +688,6 @@ export const tournamentsService = {
   },
 
   async update(id: string, tournament: Partial<Tournament>) {
-    if (tournament.isActive) {
-      await supabase
-        .from('tournaments')
-        .update({ is_active: false })
-        .neq('id', id);
-    }
-
     const { data, error } = await supabase
       .from('tournaments')
       .update({

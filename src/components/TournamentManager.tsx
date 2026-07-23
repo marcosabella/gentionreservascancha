@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Plus, Save, Search, Trash2, Trophy, User, Users, X } from 'lucide-react';
 import {
   PlayerProfile,
@@ -56,7 +56,11 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
   onSave,
   onDelete
 }) => {
-  const activeTournament = tournaments.find(tournament => tournament.isActive);
+  const activeTournaments = useMemo(
+    () => tournaments.filter(tournament => tournament.isActive),
+    [tournaments]
+  );
+  const activeTournament = activeTournaments[0];
   const [selectedId, setSelectedId] = useState(activeTournament?.id || tournaments[0]?.id || 'new');
   const selectedTournament = tournaments.find(tournament => tournament.id === selectedId);
   const [draft, setDraft] = useState<Omit<Tournament, 'id' | 'createdAt'> & { id?: string }>(
@@ -74,7 +78,15 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
   const [activeView, setActiveView] = useState<'pairs' | 'zones' | 'schedule' | 'playoff'>('pairs');
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
-  const readOnlyTournament = isAdmin ? draft : activeTournament;
+  const playerTournament = activeTournaments.find(tournament => tournament.id === selectedId) || activeTournament;
+  const readOnlyTournament = isAdmin ? draft : playerTournament;
+
+  useEffect(() => {
+    if (!isAdmin && activeTournament && !activeTournaments.some(tournament => tournament.id === selectedId)) {
+      setSelectedId(activeTournament.id);
+    }
+  }, [isAdmin, activeTournament, activeTournaments, selectedId]);
+
   const pairNameById = useMemo(() => {
     const map = new Map<string, string>();
     readOnlyTournament?.pairs.forEach(pair => {
@@ -649,7 +661,7 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
     </div>
   );
 
-  if (!isAdmin && !activeTournament) {
+  if (!isAdmin && activeTournaments.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
         <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -738,6 +750,23 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
                 Eliminar
               </button>
             )}
+          </div>
+        )}
+        {!isAdmin && activeTournaments.length > 1 && (
+          <div>
+            <label htmlFor="active-tournament" className="block text-sm font-medium text-gray-700 mb-1">
+              Torneo
+            </label>
+            <select
+              id="active-tournament"
+              value={playerTournament?.id || ''}
+              onChange={(event) => setSelectedId(event.target.value)}
+              className="min-w-64 border border-gray-300 rounded-lg px-3 py-2 bg-white"
+            >
+              {activeTournaments.map(item => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
           </div>
         )}
       </div>
