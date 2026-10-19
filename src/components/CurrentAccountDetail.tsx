@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React from 'react';
 import { X, Calendar, Clock, TrendingDown, TrendingUp, CreditCard, FileText, Trash2 } from 'lucide-react';
 import { PlayerCurrentAccount, CurrentAccountEntry } from '../types';
@@ -176,13 +177,13 @@ const CurrentAccountDetail: React.FC<CurrentAccountDetailProps> = ({ account, on
                               </div>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <button
+                              <ActionButton permission="accounts.delete"
                                 onClick={() => onDeleteEntry(entry.id)}
                                 className="inline-flex items-center px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                                 title="Eliminar movimiento"
                               >
                                 <Trash2 className="w-3 h-3" />
-                              </button>
+                              </ActionButton>
                             </td>
                           </tr>
                         );

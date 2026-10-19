@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { canReadEmployeeTable } from '../config/permissions';
+import type { AuthUser } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   Court,
@@ -16,7 +18,9 @@ import {
 const isBrowserOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 const defaultScheduleSettings = { startTime: '08:00', endTime: '22:00' };
 
-export const useSupabaseData = (enabled = true) => {
+export const useSupabaseData = (user: AuthUser | null = null) => {
+  const enabled = !!user;
+  const permissionKey = JSON.stringify(user?.permissions ?? []);
   const [courts, setCourts] = useState<Court[]>([]);
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [categories, setCategories] = useState<ConsumableCategory[]>([]);
@@ -61,10 +65,10 @@ export const useSupabaseData = (enabled = true) => {
     setError(null);
 
     try {
-      const { data: courtsData, error: courtsError } = await supabase
+      const { data: courtsData, error: courtsError } = canReadEmployeeTable(user, 'courts') ? await supabase
         .from('courts')
         .select('*')
-        .order('name');
+        .order('name') : { data: [], error: null };
 
       if (courtsError) throw courtsError;
 
@@ -78,10 +82,10 @@ export const useSupabaseData = (enabled = true) => {
         endTime: court.end_time || '22:00'
       })));
 
-      const { data: playersData, error: playersError } = await supabase
+      const { data: playersData, error: playersError } = canReadEmployeeTable(user, 'players') ? await supabase
         .from('players')
         .select('*')
-        .order('name');
+        .order('name') : { data: [], error: null };
 
       if (playersError) throw playersError;
 
@@ -97,10 +101,10 @@ export const useSupabaseData = (enabled = true) => {
         createdAt: player.created_at
       })));
 
-      const { data: categoriesData, error: categoriesError } = await supabase
+      const { data: categoriesData, error: categoriesError } = canReadEmployeeTable(user, 'consumable_categories') ? await supabase
         .from('consumable_categories')
         .select('*')
-        .order('name');
+        .order('name') : { data: [], error: null };
 
       if (categoriesError) throw categoriesError;
 
@@ -113,10 +117,10 @@ export const useSupabaseData = (enabled = true) => {
         createdAt: category.created_at
       })));
 
-      const { data: consumablesData, error: consumablesError } = await supabase
+      const { data: consumablesData, error: consumablesError } = canReadEmployeeTable(user, 'consumables') ? await supabase
         .from('consumables')
         .select('*')
-        .order('name');
+        .order('name') : { data: [], error: null };
 
       if (consumablesError) throw consumablesError;
 
@@ -130,14 +134,14 @@ export const useSupabaseData = (enabled = true) => {
         icon: consumable.icon
       })));
 
-      const { data: bookingsData, error: bookingsError } = await supabase
+      const { data: bookingsData, error: bookingsError } = canReadEmployeeTable(user, 'bookings') ? await supabase
         .from('bookings')
         .select(`
           *,
           booking_players(*),
           booking_consumptions(*)
         `)
-        .order('date', { ascending: false });
+        .order('date', { ascending: false }) : { data: [], error: null };
 
       if (bookingsError) throw bookingsError;
 
@@ -176,10 +180,10 @@ export const useSupabaseData = (enabled = true) => {
         }))
       })));
 
-      const { data: recurringData, error: recurringError } = await supabase
+      const { data: recurringData, error: recurringError } = canReadEmployeeTable(user, 'recurring_bookings') ? await supabase
         .from('recurring_bookings')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) : { data: [], error: null };
 
       if (recurringError) throw recurringError;
 
@@ -197,10 +201,10 @@ export const useSupabaseData = (enabled = true) => {
         createdAt: recurring.created_at
       })));
 
-      const { data: unavailabilityData, error: unavailabilityError } = await supabase
+      const { data: unavailabilityData, error: unavailabilityError } = canReadEmployeeTable(user, 'court_unavailabilities') ? await supabase
         .from('court_unavailabilities')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) : { data: [], error: null };
 
       if (unavailabilityError) throw unavailabilityError;
 
@@ -220,10 +224,10 @@ export const useSupabaseData = (enabled = true) => {
         createdAt: item.created_at
       })));
 
-      const { data: tournamentsData, error: tournamentsError } = await supabase
+      const { data: tournamentsData, error: tournamentsError } = canReadEmployeeTable(user, 'tournaments') ? await supabase
         .from('tournaments')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) : { data: [], error: null };
 
       if (tournamentsError) throw tournamentsError;
 
@@ -238,13 +242,13 @@ export const useSupabaseData = (enabled = true) => {
         createdAt: tournament.created_at
       })));
 
-      const { data: salesData, error: salesError } = await supabase
+      const { data: salesData, error: salesError } = canReadEmployeeTable(user, 'sales') ? await supabase
         .from('sales')
         .select(`
           *,
           sale_items(*)
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) : { data: [], error: null };
 
       if (salesError) throw salesError;
 
@@ -276,10 +280,10 @@ export const useSupabaseData = (enabled = true) => {
         createdAt: sale.created_at
       })));
 
-      const { data: entriesData, error: entriesError } = await supabase
+      const { data: entriesData, error: entriesError } = canReadEmployeeTable(user, 'current_account_entries') ? await supabase
         .from('current_account_entries')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) : { data: [], error: null };
 
       if (entriesError) throw entriesError;
 
@@ -297,10 +301,10 @@ export const useSupabaseData = (enabled = true) => {
         createdAt: entry.created_at
       })));
 
-      const { data: scheduleData, error: scheduleError } = await supabase
+      const { data: scheduleData, error: scheduleError } = canReadEmployeeTable(user, 'schedule_settings') ? await supabase
         .from('schedule_settings')
         .select('*')
-        .limit(1);
+        .limit(1) : { data: [], error: null };
 
       if (scheduleError) throw scheduleError;
 
@@ -316,7 +320,7 @@ export const useSupabaseData = (enabled = true) => {
     } finally {
       setLoading(false);
     }
-  }, [enabled]);
+  }, [enabled, user?.id, user?.role, permissionKey]);
 
   useEffect(() => {
     if (enabled && isSupabaseConfigured) {

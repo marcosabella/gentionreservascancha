@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import { ActionButton, AccessContext } from '../config/AccessContext';
+import { hasPermission } from '../config/permissions';
+import React, { useContext, useState } from 'react';
 import { Calendar, Plus, Clock, MapPin } from 'lucide-react';
 import { Court, Booking, TimeSlot, RecurringBooking, PlayerProfile, CourtUnavailability } from '../types';
 import { generateTimeSlots, formatDate } from '../utils/timeSlots';
@@ -39,6 +41,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
   onBookingClose
 }) => {
   const [selectedDate, setSelectedDate] = useState(getArgentinaDateString);
+  const accessUser = useContext(AccessContext);
   const [selectedCourt, setSelectedCourt] = useState(courts[0]?.id || '');
   const [showBookingPopup, setShowBookingPopup] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -79,6 +82,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
   const handleSlotClick = (slot: TimeSlot) => {
     if (slot.available) {
+      if (accessUser?.role === 'employee' && !hasPermission(accessUser, 'bookings.create')) return;
       // Calcular hora de fin (1.5 horas después)
       const [startHour, startMinute] = slot.time.split(':').map(Number);
       const startTimeMinutes = startHour * 60 + startMinute;
@@ -171,17 +175,17 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Reservar Turno</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{isPlayerRole ? 'Reservar cancha' : 'Calendario de reservas'}</h2>
           <p className="text-gray-600">Selecciona fecha, cancha y horario disponible (turnos de 1:30hs)</p>
         </div>
         <div className="flex space-x-3">
-          <button
+          <ActionButton permission="bookings.create"
             onClick={onNewBooking}
             className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             <span>Nueva Reserva</span>
-          </button>
+          </ActionButton>
         </div>
       </div>
 

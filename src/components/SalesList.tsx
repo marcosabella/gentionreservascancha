@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
 import { CreditCard, Plus, Search, Calendar, Clock, User, Users, Filter, Eye, Trash2, CreditCard as Edit } from 'lucide-react';
 import { Sale, Booking } from '../types';
@@ -127,13 +128,13 @@ const SalesList: React.FC<SalesListProps> = ({
           <h2 className="text-2xl font-bold text-gray-900">Gestión de Ventas</h2>
           <p className="text-gray-600">Registra ventas de consumibles a clientes</p>
         </div>
-        <button
+        <ActionButton permission="sales.create"
           onClick={onAddSale}
           className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
           <span>Nueva Venta</span>
-        </button>
+        </ActionButton>
       </div>
 
       {/* Stats */}
@@ -308,21 +309,21 @@ const SalesList: React.FC<SalesListProps> = ({
                       <Eye className="w-4 h-4" />
                     </button>
                     {!isSyntheticBookingSale(sale) && (
-                      <button
+                      <ActionButton permission="sales.edit"
                         onClick={() => onEditSale(sale)}
                         className="inline-flex items-center px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
                         title="Editar venta"
                       >
                         <Edit className="w-4 h-4" />
-                      </button>
+                      </ActionButton>
                     )}
-                    <button
+                    <ActionButton permission="sales.delete"
                       onClick={() => onDeleteSale(sale.id)}
                       className="inline-flex items-center px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                       title={sale.type === 'booking' ? 'No se pueden eliminar ventas de turnos' : 'Eliminar venta'}
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </ActionButton>
                     </div>
                   </td>
                 </tr>

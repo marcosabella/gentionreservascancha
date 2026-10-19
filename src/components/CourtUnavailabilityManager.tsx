@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
 import { CalendarOff, Clock, Edit, Plus, Save, Trash2, X } from 'lucide-react';
 import { Court, CourtUnavailability } from '../types';
@@ -128,16 +129,16 @@ const CourtUnavailabilityManager: React.FC<CourtUnavailabilityManagerProps> = ({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Disponibilidad de Canchas</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Bloqueos y disponibilidad</h2>
           <p className="text-gray-600">Bloquea horarios por clases, cierres o mantenimiento</p>
         </div>
-        <button
+        <ActionButton permission="availability.create"
           onClick={() => openForm()}
           className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
           <span>Nuevo Bloqueo</span>
-        </button>
+        </ActionButton>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -187,20 +188,20 @@ const CourtUnavailabilityManager: React.FC<CourtUnavailabilityManagerProps> = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
+                    <ActionButton permission="availability.edit"
                       onClick={() => openForm(item)}
                       className="inline-flex items-center px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                       title="Editar bloqueo"
                     >
                       <Edit className="w-4 h-4" />
-                    </button>
-                    <button
+                    </ActionButton>
+                    <ActionButton permission="availability.delete"
                       onClick={() => onDelete(item.id)}
                       className="inline-flex items-center px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                       title="Eliminar bloqueo"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </ActionButton>
                   </td>
                 </tr>
               ))}

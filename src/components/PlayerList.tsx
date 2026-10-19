@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
 import { Users, CreditCard as Edit, Trash2, Plus, Search, Mail, Phone, Calendar } from 'lucide-react';
 import { PlayerProfile } from '../types';
@@ -32,13 +33,13 @@ const PlayerList: React.FC<PlayerListProps> = ({
           <h2 className="text-2xl font-bold text-gray-900">Gestión de Jugadores</h2>
           <p className="text-gray-600">Administra la base de datos de jugadores</p>
         </div>
-        <button
+        <ActionButton permission="players.create"
           onClick={onAddPlayer}
           className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
           <span>Nuevo Jugador</span>
-        </button>
+        </ActionButton>
       </div>
 
       {/* Search */}
@@ -170,20 +171,20 @@ const PlayerList: React.FC<PlayerListProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
+                    <ActionButton permission="players.edit"
                       onClick={() => onEditPlayer(player)}
                       className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       <Edit className="w-4 h-4 mr-1" />
                       Editar
-                    </button>
-                    <button
+                    </ActionButton>
+                    <ActionButton permission="players.delete"
                       onClick={() => onDeletePlayer(player.id)}
                       className="inline-flex items-center px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                     >
                       <Trash2 className="w-4 h-4 mr-1" />
                       Eliminar
-                    </button>
+                    </ActionButton>
                   </td>
                 </tr>
               ))}

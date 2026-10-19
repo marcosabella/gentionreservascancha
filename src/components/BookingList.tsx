@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useMemo, useState } from 'react';
 import { Calendar, Clock, User, Phone, Mail, Trash2, Filter, Users, ShoppingCart, Edit, CheckCircle, Settings, Eye, Search, MapPin } from 'lucide-react';
 import { Booking, AuthUser } from '../types';
@@ -224,7 +225,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Mis Reservas</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{(user?.role === 'admin' || user?.role === 'employee') ? 'Listado de reservas' : 'Mis reservas'}</h2>
           <p className="text-gray-600">
             {statusFilter === 'today' ? `Reservas de hoy (${filteredBookings.length})` : 
              `${filteredBookings.length} reservas encontradas`}
@@ -455,36 +456,36 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
                         </button>
 
                         {/* Gestionar jugadores y consumibles */}
-                        {canEditBooking(booking) && user?.role === 'admin' && (
-                          <button
+                        {canEditBooking(booking) && (user?.role === 'admin' || user?.role === 'employee') && (
+                          <ActionButton permission="bookings.edit"
                             onClick={() => onBookingEdit(booking)}
                             className="inline-flex items-center px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
                             title="Gestionar jugadores y consumibles"
                           >
                             <Settings className="w-3 h-3" />
-                          </button>
+                          </ActionButton>
                         )}
 
                         {/* Finalizar Turno */}
-                        {canCloseBooking(booking) && user?.role === 'admin' && (
-                          <button
+                        {canCloseBooking(booking) && (user?.role === 'admin' || user?.role === 'employee') && (
+                          <ActionButton permission="bookings.close"
                             onClick={() => onBookingClose(booking)}
                             className="inline-flex items-center px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                             title="Finalizar turno"
                           >
                             <CheckCircle className="w-3 h-3" />
-                          </button>
+                          </ActionButton>
                         )}
 
                         {/* Cancelar */}
                         {canCancelBooking(booking) && (
-                          <button
+                          <ActionButton permission="bookings.cancel"
                             onClick={() => handleCancelBooking(booking.id)}
                             className="inline-flex items-center px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                             title="Cancelar reserva"
                           >
                             <Trash2 className="w-3 h-3" />
-                          </button>
+                          </ActionButton>
                         )}
 
                         {booking.status === 'completed' && (

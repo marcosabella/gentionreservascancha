@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AppUser, AuthUser } from '../types';
+import { AppUser, AuthUser, UserRole } from '../types';
+import { normalizePermissions } from '../config/permissions';
 import { supabase } from '../lib/supabase';
 
 const normalizeUsername = (value: string) => value.trim().toLowerCase();
@@ -18,7 +19,8 @@ export const useAuth = () => {
     }
 
     const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
-    const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+    const functionsUrl = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || `${supabaseUrl}/functions/v1`;
+    const response = await fetch(`${functionsUrl}/${functionName}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
@@ -57,6 +59,7 @@ export const useAuth = () => {
       sessionUser.email?.split('@')[0] ||
       'usuario',
     role: sessionUser.user_metadata?.role || 'player',
+    permissions: [],
     playerId: sessionUser.user_metadata?.player_id || sessionUser.user_metadata?.playerId,
   });
 
@@ -71,7 +74,7 @@ export const useAuth = () => {
     try {
       const { data: profileById, error: profileByIdError } = await supabase
         .from('user_profiles')
-        .select('id, username, role, player_id, is_active')
+        .select('id, username, role, player_id, is_active, permissions')
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -85,7 +88,7 @@ export const useAuth = () => {
         const username = sessionFallbackUser.username;
         const { data: profileByUsername, error: profileByUsernameError } = await supabase
           .from('user_profiles')
-          .select('id, username, role, player_id, is_active')
+          .select('id, username, role, player_id, is_active, permissions')
           .eq('username', username)
           .maybeSingle();
 
@@ -106,6 +109,7 @@ export const useAuth = () => {
         id: profile?.id || sessionFallbackUser.id,
         username: profile?.username || sessionFallbackUser.username,
         role: profile?.role || sessionFallbackUser.role || 'player',
+        permissions: profile?.role === 'employee' ? normalizePermissions(profile.permissions) : [],
         playerId: profile?.player_id ?? sessionFallbackUser.playerId,
       };
 
@@ -113,6 +117,10 @@ export const useAuth = () => {
       return authUser;
     } catch (err) {
       console.error('Error loading profile from Supabase:', err);
+      if (sessionFallbackUser.role === 'employee') {
+        setUser(null);
+        return null;
+      }
       setUser(sessionFallbackUser);
       return sessionFallbackUser;
     }
@@ -151,7 +159,17 @@ export const useAuth = () => {
       })();
     });
 
+    const refreshPermissions = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) await loadUserFromSession(session);
+    };
+    window.addEventListener('focus', refreshPermissions);
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshPermissions();
+    }, 30000);
     return () => {
+      window.removeEventListener('focus', refreshPermissions);
+      window.clearInterval(refreshTimer);
       subscription?.unsubscribe();
     };
   }, []);
@@ -174,7 +192,8 @@ export const useAuth = () => {
         throw new Error('Supabase no esta configurado');
       }
 
-      const loginResponse = await fetch(`${supabaseUrl}/functions/v1/login`, {
+      const functionsUrl = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || `${supabaseUrl}/functions/v1`;
+      const loginResponse = await fetch(`${functionsUrl}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -263,8 +282,9 @@ export const useAuth = () => {
   const createUserAccount = async (
     username: string,
     password: string,
-    role: 'admin' | 'player',
-    playerId?: string
+    role: UserRole,
+    playerId?: string,
+    permissions: string[] = []
   ) => {
     try {
       if (role === 'player' && !playerId) {
@@ -276,6 +296,7 @@ export const useAuth = () => {
         password,
         playerId: playerId || null,
         role,
+        permissions: role === 'employee' ? normalizePermissions(permissions) : [],
       });
 
       return { success: true };
@@ -287,8 +308,9 @@ export const useAuth = () => {
 
   const updateUserRole = async (
     userId: string,
-    role: 'admin' | 'player',
-    playerId?: string
+    role: UserRole,
+    playerId?: string,
+    permissions: string[] = []
   ) => {
     try {
       if (role === 'player' && !playerId) {
@@ -299,6 +321,7 @@ export const useAuth = () => {
         userId,
         role,
         playerId: role === 'player' ? playerId : null,
+        permissions: role === 'employee' ? normalizePermissions(permissions) : [],
       });
 
       if (user?.id === userId) {
@@ -306,6 +329,7 @@ export const useAuth = () => {
           ...prev,
           role,
           playerId: role === 'player' ? playerId : undefined,
+          permissions: role === 'employee' ? normalizePermissions(permissions) : [],
         } : prev);
       }
 
@@ -374,6 +398,7 @@ export const useAuth = () => {
 
   const isAdmin = () => user?.role === 'admin';
   const isPlayer = () => user?.role === 'player';
+  const isEmployee = () => user?.role === 'employee';
   const isAuthenticated = () => !!user;
 
   return {
@@ -391,6 +416,7 @@ export const useAuth = () => {
     resetUserPassword,
     isAdmin,
     isPlayer,
+    isEmployee,
     isAuthenticated,
   };
 };

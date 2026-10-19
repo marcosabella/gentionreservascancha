@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LogIn, Eye, EyeOff, User, Lock } from 'lucide-react';
+import { complexName } from '../config/complex';
 
 interface LoginFormProps {
   onLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -32,8 +33,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading, error }) => {
           <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">PADEL CENTER</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{complexName}</h1>
           <p className="text-gray-600">Sistema de Gestión de Reservas</p>
+          {import.meta.env.VITE_TEST_ENVIRONMENT === 'true' && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Entorno de pruebas · datos independientes de producción</p>}
         </div>
 
         {/* Error Message */}
@@ -110,7 +112,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading, error }) => {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-gray-500">
-            © 2025 Padel Center - Sistema de Gestión
+            © {new Date().getFullYear()} {complexName} - Sistema de Gestión
           </p>
           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
             <p className="text-xs text-blue-700">

@@ -1,0 +1,13 @@
+{
+  "projectRef": "qsvdpdifygmzdawxfyqv",
+  "applicationLogin": true,
+  "authSession": true,
+  "verifiedAt": "2026-10-19T11:44:39.786Z",
+  "profile": true,
+  "userManagement": true,
+  "applicationDataQueries": 11,
+  "anonymousDataBlocked": true,
+  "administrativeFunctionsProtected": 6,
+  "passwordHashesProtected": true,
+  "invalidPasswordRejected": true
+}

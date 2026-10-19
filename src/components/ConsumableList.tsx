@@ -1,8 +1,10 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
 import { ShoppingCart, Edit, Trash2, Plus, Package, Utensils, Coffee, Tag, Dumbbell, Gamepad2, Shirt, Zap, Droplets, Apple, Sandwich, Pizza, Cookie, Wine, Beer, Gift, Wrench, Shield, Heart, Search, Calendar } from 'lucide-react';
 import { Booking, ConsumableItem, ConsumableCategory, Sale } from '../types';
 import { formatCurrency } from '../utils/timeSlots';
 import { getCategoryColor } from '../data/categories';
+import CategoryManagementModal from './CategoryManagementModal';
 
 interface ConsumableListProps {
   consumables: ConsumableItem[];
@@ -12,6 +14,7 @@ interface ConsumableListProps {
   onEditConsumable: (consumable: ConsumableItem) => void;
   onDeleteConsumable: (consumableId: string) => void;
   onAddConsumable: () => void;
+  onCategoriesUpdate?: (categories: ConsumableCategory[]) => void;
 }
 
 const iconMap = {
@@ -27,9 +30,11 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
   bookings,
   onEditConsumable, 
   onDeleteConsumable, 
-  onAddConsumable 
+  onAddConsumable,
+  onCategoriesUpdate
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCategories, setShowCategories] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -123,16 +128,19 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Gestión de Consumibles</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Productos y precios</h2>
           <p className="text-gray-600">Administra productos y servicios adicionales</p>
         </div>
-        <button
+        <div className="flex flex-wrap gap-2">
+        {onCategoriesUpdate && <ActionButton permission="products.categories" onClick={() => setShowCategories(true)} className="rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">Categorías</ActionButton>}
+        <ActionButton permission="products.create"
           onClick={onAddConsumable}
           className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
-          <span>Nuevo Consumible</span>
-        </button>
+          <span>Nuevo producto</span>
+        </ActionButton>
+        </div>
       </div>
 
       {/* Stats */}
@@ -277,20 +285,20 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
                     <div className="text-xs text-gray-500">unidades</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
+                    <ActionButton permission="products.edit"
                       onClick={() => onEditConsumable(consumable)}
                       className="inline-flex items-center px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                       title="Editar consumible"
                     >
                       <Edit className="w-4 h-4" />
-                    </button>
-                    <button
+                    </ActionButton>
+                    <ActionButton permission="products.delete"
                       onClick={() => onDeleteConsumable(consumable.id)}
                       className="inline-flex items-center px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                       title="Eliminar consumible"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </ActionButton>
                   </td>
                 </tr>
               ))}
@@ -325,6 +333,7 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
           </div>
         </div>
       </div>
+      {showCategories && onCategoriesUpdate && <CategoryManagementModal categories={categories} onSave={onCategoriesUpdate} onClose={() => setShowCategories(false)} />}
     </div>
   );
 };

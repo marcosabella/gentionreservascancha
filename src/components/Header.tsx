@@ -1,4 +1,5 @@
 import React from 'react';
+import { complexName } from '../config/complex';
 import { Calendar, Clock, MapPin, ShoppingCart, Users, CreditCard } from 'lucide-react';
 
 interface HeaderProps {
@@ -26,7 +27,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
               <MapPin className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">PADEL CENTER</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{complexName}</h1>
               <p className="text-sm text-gray-600">Sistema de reservas online</p>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React from 'react';
 import { MapPin, Star, Clock, Zap, Edit, Trash2, Plus, Eye } from 'lucide-react';
 import { Court } from '../types';
@@ -25,13 +26,13 @@ const CourtList: React.FC<CourtListProps> = ({ courts, onEditCourt, onDeleteCour
           <h2 className="text-2xl font-bold text-gray-900">Gestión de Canchas</h2>
           <p className="text-gray-600">Administra canchas, precios y características</p>
         </div>
-        <button
+        <ActionButton permission="courts.create"
           onClick={onAddCourt}
           className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
           <span>Nueva Cancha</span>
-        </button>
+        </ActionButton>
       </div>
 
       {/* Stats */}
@@ -158,20 +159,20 @@ const CourtList: React.FC<CourtListProps> = ({ courts, onEditCourt, onDeleteCour
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
+                    <ActionButton permission="courts.edit"
                       onClick={() => onEditCourt(court)}
                       className="inline-flex items-center px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                       title="Editar cancha"
                     >
                       <Edit className="w-4 h-4" />
-                    </button>
-                    <button
+                    </ActionButton>
+                    <ActionButton permission="courts.delete"
                       onClick={() => onDeleteCourt(court.id)}
                       className="inline-flex items-center px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                       title="Eliminar cancha"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </ActionButton>
                   </td>
                 </tr>
               ))}

@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Plus, Save, Search, Trash2, Trophy, User, Users, X } from 'lucide-react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ActionButton } from '../config/AccessContext';
+import { Check, GitBranch, List, Plus, Save, Search, Trash2, Trophy, User, Users, X } from 'lucide-react';
 import {
   PlayerProfile,
   Tournament,
@@ -14,6 +15,8 @@ interface TournamentManagerProps {
   tournaments: Tournament[];
   players: PlayerProfile[];
   isAdmin: boolean;
+  canDelete?: boolean;
+  isEmployee?: boolean;
   onSave: (tournament: Omit<Tournament, 'id' | 'createdAt'> & { id?: string }) => void;
   onDelete: (tournamentId: string) => void;
 }
@@ -53,12 +56,14 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
   tournaments,
   players,
   isAdmin,
+  canDelete = true,
+  isEmployee = false,
   onSave,
   onDelete
 }) => {
   const activeTournaments = useMemo(
-    () => tournaments.filter(tournament => tournament.isActive),
-    [tournaments]
+    () => tournaments.filter(tournament => tournament.isActive || isEmployee),
+    [tournaments, isEmployee]
   );
   const activeTournament = activeTournaments[0];
   const [selectedId, setSelectedId] = useState(activeTournament?.id || tournaments[0]?.id || 'new');
@@ -76,7 +81,11 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
   const [roundName, setRoundName] = useState('8vos de final');
   const [roundMatchCount, setRoundMatchCount] = useState(8);
   const [activeView, setActiveView] = useState<'pairs' | 'zones' | 'schedule' | 'playoff'>('pairs');
+  const [playoffDisplayView, setPlayoffDisplayView] = useState<'matches' | 'bracket'>('matches');
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const bracketRef = useRef<HTMLDivElement | null>(null);
+  const bracketMatchRefs = useRef(new Map<string, HTMLDivElement>());
+  const [bracketConnections, setBracketConnections] = useState<string[]>([]);
 
   const playerTournament = activeTournaments.find(tournament => tournament.id === selectedId) || activeTournament;
   const readOnlyTournament = isAdmin ? draft : playerTournament;
@@ -94,6 +103,73 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
     });
     return map;
   }, [readOnlyTournament]);
+
+  const sortedPlayoffRounds = useMemo(
+    () => (readOnlyTournament?.playoffRounds || []).slice().sort((a, b) => a.order - b.order),
+    [readOnlyTournament?.playoffRounds]
+  );
+  const playoffMatchesByRound = (roundId: string) =>
+    (readOnlyTournament?.matches || []).filter(match => match.stage === 'playoff' && match.roundId === roundId);
+
+  useLayoutEffect(() => {
+    if (activeView !== 'playoff' || playoffDisplayView !== 'bracket') {
+      setBracketConnections([]);
+      return;
+    }
+
+    const bracket = bracketRef.current;
+    if (!bracket) return;
+
+    const updateConnections = () => {
+      const bracketRect = bracket.getBoundingClientRect();
+      const connections: string[] = [];
+
+      sortedPlayoffRounds.slice(0, -1).forEach((round, roundIndex) => {
+        const playoffMatches = readOnlyTournament?.matches || [];
+        const currentMatches = playoffMatches.filter(
+          match => match.stage === 'playoff' && match.roundId === round.id
+        );
+        const nextMatches = playoffMatches.filter(
+          match =>
+            match.stage === 'playoff' &&
+            match.roundId === sortedPlayoffRounds[roundIndex + 1].id
+        );
+        if (currentMatches.length === 0 || nextMatches.length === 0) return;
+
+        currentMatches.forEach((match, matchIndex) => {
+          const nextIndex = Math.min(
+            Math.floor((matchIndex * nextMatches.length) / currentMatches.length),
+            nextMatches.length - 1
+          );
+          const currentElement = bracketMatchRefs.current.get(match.id);
+          const nextElement = bracketMatchRefs.current.get(nextMatches[nextIndex].id);
+          if (!currentElement || !nextElement) return;
+
+          const currentRect = currentElement.getBoundingClientRect();
+          const nextRect = nextElement.getBoundingClientRect();
+          const startX = currentRect.right - bracketRect.left;
+          const startY = currentRect.top + currentRect.height / 2 - bracketRect.top;
+          const endX = nextRect.left - bracketRect.left;
+          const endY = nextRect.top + nextRect.height / 2 - bracketRect.top;
+          const middleX = startX + (endX - startX) / 2;
+
+          connections.push(`M ${startX} ${startY} H ${middleX} V ${endY} H ${endX}`);
+        });
+      });
+
+      setBracketConnections(connections);
+    };
+
+    const frame = requestAnimationFrame(updateConnections);
+    const resizeObserver = new ResizeObserver(updateConnections);
+    resizeObserver.observe(bracket);
+    bracketMatchRefs.current.forEach(element => resizeObserver.observe(element));
+
+    return () => {
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+    };
+  }, [activeView, playoffDisplayView, sortedPlayoffRounds, readOnlyTournament?.matches]);
 
   const getPairDisplayName = (pair: TournamentPair) => `${pair.player1Name} / ${pair.player2Name || 'Pendiente'}`;
 
@@ -711,9 +787,98 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
     { id: 'playoff' as const, label: 'Play off', count: tournament.playoffRounds.length }
   ];
   const pairSearchResults = getPairSearchResults();
+  const renderBracketMatch = (match: TournamentMatch, matchIndex: number) => {
+    const pair1Name = match.pair1Id ? pairNameById.get(match.pair1Id) : undefined;
+    const pair2Name = match.pair2Id ? pairNameById.get(match.pair2Id) : undefined;
+    const pair1Score = match.sets.filter(set => set.pair1Games > set.pair2Games).length;
+    const pair2Score = match.sets.filter(set => set.pair2Games > set.pair1Games).length;
+    const scoreGridColumns = `minmax(0, 1fr) repeat(${match.sets.length}, 1.75rem) 2rem`;
+
+    return (
+      <div
+        key={match.id}
+        ref={element => {
+          if (element) bracketMatchRefs.current.set(match.id, element);
+          else bracketMatchRefs.current.delete(match.id);
+        }}
+        className="relative z-10 w-[calc(100vw-3.5rem)] max-w-72 flex-shrink-0"
+      >
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-1.5 text-xs text-gray-500">
+            <span>Partido {matchIndex + 1}</span>
+            <span>
+              {match.scheduledDate ? formatShortDate(match.scheduledDate) : ''}
+              {match.scheduledDate && match.scheduledTime ? ' · ' : ''}
+              {match.scheduledTime || ''}
+            </span>
+          </div>
+          <div
+            className="grid items-center gap-1 border-b border-gray-100 bg-gray-50 px-3 py-1 text-center text-[10px] font-medium uppercase tracking-wide text-gray-500"
+            style={{ gridTemplateColumns: scoreGridColumns }}
+            aria-hidden="true"
+          >
+            <span className="text-left">Pareja</span>
+            {match.sets.map((_, setIndex) => (
+              <span key={setIndex}>S{setIndex + 1}</span>
+            ))}
+            <span>SG</span>
+          </div>
+          {[
+            {
+              id: match.pair1Id,
+              name: pair1Name,
+              score: pair1Score,
+              setScores: match.sets.map(set => set.pair1Games)
+            },
+            {
+              id: match.pair2Id,
+              name: pair2Name,
+              score: pair2Score,
+              setScores: match.sets.map(set => set.pair2Games)
+            }
+          ].map((pair, index) => {
+            const isWinner = Boolean(pair.id && pair.id === match.winnerPairId);
+            return (
+              <div
+                key={`${match.id}-${index}`}
+                className={`grid items-center gap-1 px-3 py-2 text-sm ${
+                  index === 0 ? 'border-b border-gray-100' : ''
+                } ${isWinner ? 'bg-green-50 font-semibold text-green-800' : 'text-gray-700'}`}
+                style={{ gridTemplateColumns: scoreGridColumns }}
+              >
+                <span
+                  className="min-w-0 whitespace-normal break-words pr-1 leading-tight"
+                  title={pair.name || 'Por definir'}
+                >
+                  {pair.name || 'Por definir'}
+                </span>
+                {pair.setScores.map((games, setIndex) => (
+                  <span
+                    key={setIndex}
+                    className="text-center tabular-nums"
+                    aria-label={`Set ${setIndex + 1}: ${games}`}
+                  >
+                    {games}
+                  </span>
+                ))}
+                <span
+                  className={`flex h-6 w-7 items-center justify-center justify-self-center rounded tabular-nums ${
+                  isWinner ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
+                  aria-label={`${pair.score} sets ganados`}
+                >
+                  {pair.score}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Torneos</h2>
@@ -741,17 +906,18 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
               <Save className="w-4 h-4" />
               Guardar
             </button>
-            {draft.id && (
-              <button
+            {draft.id && canDelete && (
+              <ActionButton permission="tournaments.delete"
                 onClick={() => onDelete(draft.id!)}
                 className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
               >
                 <Trash2 className="w-4 h-4" />
                 Eliminar
-              </button>
+              </ActionButton>
             )}
           </div>
         )}
+        {!isAdmin && canDelete && playerTournament && <ActionButton permission="tournaments.delete" onClick={() => onDelete(playerTournament.id)} className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700">Eliminar torneo</ActionButton>}
         {!isAdmin && activeTournaments.length > 1 && (
           <div>
             <label htmlFor="active-tournament" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1163,10 +1329,38 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
       )}
 
       {activeView === 'playoff' && (
-      <section className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Play off</h3>
-          <span className="text-sm text-gray-500">{tournament.playoffRounds.length} rondas</span>
+      <section className="min-w-0 max-w-full overflow-hidden bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Play off</h3>
+            <span className="text-sm text-gray-500">{tournament.playoffRounds.length} rondas</span>
+          </div>
+          <div className="inline-flex w-fit rounded-lg border border-gray-200 bg-gray-50 p-1" role="group" aria-label="Vista de play off">
+            <button
+              type="button"
+              onClick={() => setPlayoffDisplayView('matches')}
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                playoffDisplayView === 'matches'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <List className="h-4 w-4" />
+              Partidos
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlayoffDisplayView('bracket')}
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                playoffDisplayView === 'bracket'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <GitBranch className="h-4 w-4" />
+              Llaves
+            </button>
+          </div>
         </div>
 
         {isAdmin && (
@@ -1177,10 +1371,9 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
           </div>
         )}
 
+        {playoffDisplayView === 'matches' ? (
         <div className="space-y-5">
-          {tournament.playoffRounds
-            .slice()
-            .sort((a, b) => a.order - b.order)
+          {sortedPlayoffRounds
             .map(round => (
               <div key={round.id} className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
@@ -1217,6 +1410,49 @@ const TournamentManager: React.FC<TournamentManagerProps> = ({
               </div>
             ))}
         </div>
+        ) : sortedPlayoffRounds.length === 0 ? (
+          <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-500">
+            Todavia no hay rondas de play off para mostrar en las llaves.
+          </div>
+        ) : (
+          <div
+            className="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-gray-200 bg-slate-50"
+            tabIndex={0}
+            aria-label="Llaves del play off. Desplazar horizontalmente para ver todas las rondas."
+          >
+            <div ref={bracketRef} className="relative flex w-max min-w-full gap-8 p-3 sm:gap-12 sm:p-5">
+              <svg
+                className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+                aria-hidden="true"
+              >
+                {bracketConnections.map((path, index) => (
+                  <path
+                    key={`${path}-${index}`}
+                    d={path}
+                    fill="none"
+                    stroke="rgb(156 163 175)"
+                    strokeWidth="2"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              </svg>
+              {sortedPlayoffRounds.map(round => {
+                const roundMatches = playoffMatchesByRound(round.id);
+                return (
+                  <div key={round.id} className="flex w-[calc(100vw-3.5rem)] max-w-72 flex-col">
+                    <div className="mb-4 text-center">
+                      <h4 className="font-semibold text-gray-900">{round.name}</h4>
+                      <p className="text-xs text-gray-500">{roundMatches.length} partidos</p>
+                    </div>
+                    <div className="flex flex-1 flex-col justify-around gap-5">
+                      {roundMatches.map((match, index) => renderBracketMatch(match, index))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </section>
       )}
 

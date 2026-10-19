@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
 import { CreditCard, Plus, Search, TrendingDown, TrendingUp, Eye, DollarSign, Users } from 'lucide-react';
 import { PlayerProfile, CurrentAccountEntry, PlayerCurrentAccount } from '../types';
@@ -267,13 +268,13 @@ const CurrentAccountList: React.FC<CurrentAccountListProps> = ({
                       Ver
                     </button>
                     {account.balance < 0 && (
-                      <button
+                      <ActionButton permission="accounts.pay"
                         onClick={() => onAddPayment(account.playerId)}
                         className="inline-flex items-center px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                       >
                         <Plus className="w-4 h-4 mr-1" />
                         Cobrar
-                      </button>
+                      </ActionButton>
                     )}
                   </td>
                 </tr>

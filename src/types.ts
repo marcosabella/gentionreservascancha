@@ -234,11 +234,14 @@ export interface Tournament {
   createdAt: string;
 }
 
+export type UserRole = 'admin' | 'player' | 'employee';
+
 export interface AppUser {
   id: string;
   username: string;
   password: string;
-  role: 'admin' | 'player';
+  role: UserRole;
+  permissions?: string[];
   playerId?: string; // Solo para usuarios tipo 'player'
   isActive: boolean;
   createdAt: string;
@@ -248,7 +251,8 @@ export interface AppUser {
 export interface AuthUser {
   id: string;
   username: string;
-  role: 'admin' | 'player';
+  role: UserRole;
+  permissions?: string[];
   playerId?: string;
   playerData?: PlayerProfile;
 }

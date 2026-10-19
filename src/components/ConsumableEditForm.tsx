@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
 import { Save, X, Package, Utensils, Coffee, Tag, Dumbbell, Gamepad2, Shirt, Zap, Droplets, Apple, Sandwich, Pizza, Cookie, Wine, Beer, Gift, Wrench, Shield, Heart, Settings } from 'lucide-react';
 import { ConsumableItem, ConsumableCategory } from '../types';
@@ -158,14 +159,14 @@ const ConsumableEditForm: React.FC<ConsumableEditFormProps> = ({
                 <label className="block text-sm font-medium text-gray-700">
                   Categoría
                 </label>
-                <button
+                <ActionButton permission="products.categories"
                   type="button"
                   onClick={() => setShowCategoryManagement(true)}
                   className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700 transition-colors"
                 >
                   <Settings className="w-4 h-4" />
                   <span>Gestionar</span>
-                </button>
+                </ActionButton>
               </div>
               <div className="flex gap-2">
                 <select

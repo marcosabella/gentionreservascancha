@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
 import { Calendar, Clock, User, MapPin, Edit, Trash2, Plus, ToggleLeft, ToggleRight, CalendarX, Eye } from 'lucide-react';
 import { RecurringBooking, PlayerProfile, Court } from '../types';
@@ -54,13 +55,13 @@ const RecurringBookingList: React.FC<RecurringBookingListProps> = ({
           <h2 className="text-2xl font-bold text-gray-900">Turnos Fijos</h2>
           <p className="text-gray-600">Gestiona reservas recurrentes semanales</p>
         </div>
-        <button
+        <ActionButton permission="recurring.create"
           onClick={onAddRecurring}
           className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
           <span>Nuevo Turno Fijo</span>
-        </button>
+        </ActionButton>
       </div>
 
       {/* Stats */}
@@ -190,7 +191,7 @@ const RecurringBookingList: React.FC<RecurringBookingListProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
+                    <ActionButton permission="recurring.edit"
                       onClick={() => onToggleActive(recurring.id)}
                       className="flex items-center space-x-2 hover:bg-gray-100 p-1 rounded transition-colors"
                     >
@@ -205,7 +206,7 @@ const RecurringBookingList: React.FC<RecurringBookingListProps> = ({
                           <span className="text-sm font-medium text-gray-500">Inactivo</span>
                         </>
                       )}
-                    </button>
+                    </ActionButton>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
@@ -217,27 +218,27 @@ const RecurringBookingList: React.FC<RecurringBookingListProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-1">
-                      <button
+                      <ActionButton permission="recurring.edit"
                         onClick={() => onManageSkipDates(recurring)}
                         className="inline-flex items-center px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
                         title="Gestionar excepciones"
                       >
                         <CalendarX className="w-3 h-3" />
-                      </button>
-                      <button
+                      </ActionButton>
+                      <ActionButton permission="recurring.edit"
                         onClick={() => onEditRecurring(recurring)}
                         className="inline-flex items-center px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                         title="Editar turno fijo"
                       >
                         <Edit className="w-3 h-3" />
-                      </button>
-                      <button
+                      </ActionButton>
+                      <ActionButton permission="recurring.delete"
                         onClick={() => onDeleteRecurring(recurring.id)}
                         className="inline-flex items-center px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                         title="Eliminar turno fijo"
                       >
                         <Trash2 className="w-3 h-3" />
-                      </button>
+                      </ActionButton>
                     </div>
                   </td>
                 </tr>

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Users, Plus, Edit, Trash2, Key, UserCheck, UserX, Search, Shield, User, X } from 'lucide-react';
-import { AppUser, PlayerProfile, AuthUser } from '../types';
+import { AppUser, PlayerProfile, AuthUser, UserRole } from '../types';
+import EmployeePermissions from './EmployeePermissions';
+import { normalizePermissions } from '../config/permissions';
 import { formatDateTimeArgentina } from '../utils/timeSlots';
 
 interface UserManagementProps {
   users: AppUser[];
   players: PlayerProfile[];
   currentUser: AuthUser;
-  onCreateUser: (username: string, password: string, role: 'admin' | 'player', playerId?: string) => Promise<{ success: boolean; error?: string }>;
-  onUpdateUserRole: (userId: string, role: 'admin' | 'player', playerId?: string) => Promise<{ success: boolean; error?: string }>;
+  onCreateUser: (username: string, password: string, role: UserRole, playerId?: string, permissions?: string[]) => Promise<{ success: boolean; error?: string }>;
+  onUpdateUserRole: (userId: string, role: UserRole, playerId?: string, permissions?: string[]) => Promise<{ success: boolean; error?: string }>;
   onToggleUserStatus: (userId: string, isActive: boolean) => void;
   onDeleteUser: (userId: string) => void;
   onResetPassword: (userId: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
@@ -32,12 +34,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    role: 'player' as 'admin' | 'player',
-    playerId: ''
+    role: 'player' as UserRole,
+    playerId: '',
+    permissions: [] as string[]
   });
   const [roleFormData, setRoleFormData] = useState({
-    role: 'player' as 'admin' | 'player',
-    playerId: ''
+    role: 'player' as UserRole,
+    playerId: '',
+    permissions: [] as string[]
   });
   const [resetPassword, setResetPassword] = useState('');
 
@@ -81,7 +85,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
       formData.username,
       formData.password,
       formData.role,
-      formData.role === 'player' ? formData.playerId : undefined
+      formData.role === 'player' ? formData.playerId : undefined,
+      formData.role === 'employee' ? formData.permissions : []
     );
 
     if (result.success) {
@@ -90,7 +95,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
         username: '',
         password: '',
         role: 'player',
-        playerId: ''
+        playerId: '',
+    permissions: [] as string[]
       });
       alert('Usuario creado exitosamente');
     } else {
@@ -124,7 +130,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setSelectedUser(user);
     setRoleFormData({
       role: user.role,
-      playerId: user.playerId || ''
+      playerId: user.playerId || '',
+      permissions: normalizePermissions(user.permissions)
     });
     setShowRoleEdit(true);
   };
@@ -147,7 +154,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     const result = await onUpdateUserRole(
       selectedUser.id,
       roleFormData.role,
-      roleFormData.role === 'player' ? roleFormData.playerId : undefined
+      roleFormData.role === 'player' ? roleFormData.playerId : undefined,
+      roleFormData.role === 'employee' ? roleFormData.permissions : []
     );
 
     if (result.success) {
@@ -155,7 +163,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
       setSelectedUser(null);
       setRoleFormData({
         role: 'player',
-        playerId: ''
+        playerId: '',
+    permissions: [] as string[]
       });
       alert('Rol actualizado exitosamente');
     } else {
@@ -194,11 +203,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const getRoleLabel = (role: string) => {
-    return role === 'admin' ? 'Administrador' : 'Jugador';
+    return role === 'admin' ? 'Administrador' : role === 'employee' ? 'Empleado' : 'Jugador';
   };
 
   const getRoleColor = (role: string) => {
-    return role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
+    return role === 'admin' ? 'bg-purple-100 text-purple-800' : role === 'employee' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800';
   };
 
   const getStatusColor = (isActive: boolean) => {
@@ -216,7 +225,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Gestión de Usuarios</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Usuarios y permisos</h2>
           <p className="text-gray-600">Administra cuentas de usuario y permisos de la aplicación</p>
         </div>
         <button
@@ -381,7 +390,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                         <button
                           onClick={() => handleOpenRoleEdit(user)}
                           className="inline-flex items-center px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                          title="Cambiar rol"
+                          title="Editar rol y permisos"
                           disabled={isCurrentUser}
                         >
                           <Edit className="w-3 h-3" />
@@ -446,7 +455,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       {/* Create User Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-2xl max-h-[90dvh] overflow-y-auto max-w-3xl w-full">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-gray-900">Crear Usuario</h3>
@@ -496,15 +505,21 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     value={formData.role}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      role: e.target.value as 'admin' | 'player',
-                      playerId: e.target.value === 'admin' ? '' : prev.playerId
+                      role: e.target.value as UserRole,
+                      playerId: e.target.value === 'player' ? prev.playerId : '',
+                      permissions: e.target.value === 'employee' ? prev.permissions : []
                     }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                   >
                     <option value="player">Jugador</option>
                     <option value="admin">Administrador</option>
+                    <option value="employee">Empleado</option>
                   </select>
                 </div>
+
+                {formData.role === 'employee' && (
+                  <EmployeePermissions value={formData.permissions} onChange={permissions => setFormData(prev => ({ ...prev, permissions }))} />
+                )}
 
                 {formData.role === 'player' && (
                   <div>
@@ -556,17 +571,18 @@ const UserManagement: React.FC<UserManagementProps> = ({
       {/* Edit Role Modal */}
       {showRoleEdit && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-2xl max-h-[90dvh] overflow-y-auto max-w-3xl w-full">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Cambiar Rol</h3>
+                <h3 className="text-xl font-bold text-gray-900">Rol y permisos</h3>
                 <button
                   onClick={() => {
                     setShowRoleEdit(false);
                     setSelectedUser(null);
                     setRoleFormData({
                       role: 'player',
-                      playerId: ''
+                      playerId: '',
+    permissions: [] as string[]
                     });
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -590,15 +606,21 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     value={roleFormData.role}
                     onChange={(e) => setRoleFormData(prev => ({
                       ...prev,
-                      role: e.target.value as 'admin' | 'player',
-                      playerId: e.target.value === 'admin' ? '' : prev.playerId
+                      role: e.target.value as UserRole,
+                      playerId: e.target.value === 'player' ? prev.playerId : '',
+                      permissions: e.target.value === 'employee' ? prev.permissions : []
                     }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                   >
                     <option value="player">Jugador</option>
                     <option value="admin">Administrador</option>
+                    <option value="employee">Empleado</option>
                   </select>
                 </div>
+
+                {roleFormData.role === 'employee' && (
+                  <EmployeePermissions value={roleFormData.permissions} onChange={permissions => setRoleFormData(prev => ({ ...prev, permissions }))} />
+                )}
 
                 {roleFormData.role === 'player' && (
                   <div>
@@ -629,7 +651,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       setSelectedUser(null);
                       setRoleFormData({
                         role: 'player',
-                        playerId: ''
+                        playerId: '',
+    permissions: [] as string[]
                       });
                     }}
                     className="flex-1 px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -640,7 +663,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     type="submit"
                     className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
                   >
-                    Guardar Rol
+                    Guardar permisos
                   </button>
                 </div>
               </form>
@@ -722,6 +745,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div>
             <p><strong>Administradores:</strong> Acceso completo al sistema</p>
             <p><strong>Jugadores:</strong> Acceso limitado a sus reservas y cuenta</p>
+            <p><strong>Empleados:</strong> Acceso a los módulos y acciones habilitados por el administrador</p>
             <p><strong>Almacenamiento:</strong> Gestionado desde Supabase</p>
           </div>
           <div>

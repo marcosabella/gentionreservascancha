@@ -1,4 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { authorizeFunction } from '../_shared/authorize.ts';
+import { normalizePermissions, type UserRole } from '../_shared/permissions.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,7 +10,8 @@ const corsHeaders = {
 
 interface UpdateUserRoleRequest {
   userId: string;
-  role: 'admin' | 'player';
+  role: UserRole;
+  permissions?: unknown;
   playerId?: string | null;
 }
 
@@ -21,6 +24,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const denied = await authorizeFunction(req);
+    if (denied) return denied;
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -28,7 +33,10 @@ Deno.serve(async (req: Request) => {
       throw new Error('Missing Supabase environment variables');
     }
 
-    const { userId, role, playerId }: UpdateUserRoleRequest = await req.json();
+    const { userId, role, playerId, permissions }: UpdateUserRoleRequest = await req.json();
+    if (!['admin', 'player', 'employee'].includes(role)) {
+      return new Response(JSON.stringify({ error: 'Rol no valido' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     if (!userId || !role) {
       return new Response(
@@ -100,6 +108,7 @@ Deno.serve(async (req: Request) => {
       .update({
         role,
         player_id: role === 'player' ? playerId : null,
+        permissions: role === 'employee' ? normalizePermissions(permissions) : [],
       })
       .eq('id', userId);
 

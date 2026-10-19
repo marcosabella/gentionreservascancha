@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React from 'react';
 import { X, ShoppingCart, CheckCircle, Eye, Calendar, Clock, Users } from 'lucide-react';
 import { Booking } from '../types';
@@ -119,7 +120,7 @@ const BookingActionPopup: React.FC<BookingActionPopupProps> = ({
             </button>
 
             {canAddConsumables && !isPlayerRole && (
-              <button
+              <ActionButton permission="bookings.edit"
                 onClick={onAddConsumables}
                 className="w-full flex items-center justify-center space-x-2 bg-orange-600 text-white py-3 rounded-lg font-medium hover:bg-orange-700 transition-colors"
               >
@@ -129,17 +130,17 @@ const BookingActionPopup: React.FC<BookingActionPopupProps> = ({
                     ? 'Editar Jugadores / Consumibles'
                     : 'Agregar Jugadores / Consumibles'}
                 </span>
-              </button>
+              </ActionButton>
             )}
 
             {canFinalize && !isPlayerRole && (
-              <button
+              <ActionButton permission="bookings.close"
                 onClick={onFinalizeTurn}
                 className="w-full flex items-center justify-center space-x-2 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
               >
                 <CheckCircle className="w-5 h-5" />
                 <span>Finalizar Turno</span>
-              </button>
+              </ActionButton>
             )}
 
             {isPlayerRole && booking.status === 'confirmed' && (

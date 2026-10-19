@@ -1,4 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { authorizeFunction } from '../_shared/authorize.ts';
+import { normalizePermissions, type UserRole } from '../_shared/permissions.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +12,8 @@ interface CreateUserRequest {
   username: string;
   password: string;
   playerId?: string;
-  role: 'admin' | 'player';
+  role: UserRole;
+  permissions?: unknown;
 }
 
 const normalizeUsername = (value: string) => value.trim().toLowerCase();
@@ -44,7 +47,13 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { username, password, playerId, role }: CreateUserRequest = await req.json();
+    const denied = await authorizeFunction(req);
+    if (denied) return denied;
+    const { username, password, playerId, role, permissions }: CreateUserRequest = await req.json();
+    if (!['admin', 'player', 'employee'].includes(role) || (role === 'player' && !playerId)) {
+      return new Response(JSON.stringify({ error: 'Rol o jugador no valido' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const employeePermissions = role === 'employee' ? normalizePermissions(permissions) : [];
     const trimmedUsername = username.trim();
     const normalizedUsername = normalizeUsername(username);
 
@@ -64,10 +73,10 @@ Deno.serve(async (req: Request) => {
     // Check if username already exists using raw SQL to bypass RLS
     let existingUser = null;
     try {
-      const { data: existingUsers, error: checkError } = await supabaseAdmin.rpc(
+      const { data: existingUsers } = await supabaseAdmin.rpc(
         'check_username_exists',
         { input_username: trimmedUsername }
-      ).catch(() => ({ data: null, error: null }));
+      );
 
       // If RPC doesn't exist, fall back to direct query
       if (existingUsers === null) {
@@ -161,6 +170,7 @@ Deno.serve(async (req: Request) => {
       username: trimmedUsername,
       player_id: playerId || null,
       role: role,
+      permissions: employeePermissions,
       is_active: true,
       password_hash: await hashPassword(password),
       password_updated_at: new Date().toISOString(),

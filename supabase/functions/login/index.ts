@@ -26,7 +26,7 @@ async function derivePasswordHash(password: string, salt: Uint8Array, iterations
   );
 
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+    { name: "PBKDF2", hash: "SHA-256", salt: new Uint8Array(salt), iterations },
     keyMaterial,
     256,
   );
@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
     for (const candidate of usernameCandidates) {
       const result = await supabaseAdmin
         .from("user_profiles")
-        .select("id, username, role, player_id, is_active, password_hash")
+        .select("id, username, role, player_id, is_active, password_hash, permissions")
         .eq("username", candidate)
         .maybeSingle();
 
@@ -246,6 +246,7 @@ Deno.serve(async (req: Request) => {
           username: userProfile.username,
           email: authUser.email,
           role: userProfile.role,
+          permissions: userProfile.role === 'employee' ? userProfile.permissions : [],
           playerId: userProfile.player_id,
         },
       }),

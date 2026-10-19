@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { AccessContext } from './config/AccessContext';
+import { hasPermission, tabPermissions } from './config/permissions';
+import type { UserRole } from './types';
 import Sidebar from './components/Sidebar';
 import BookingCalendar from './components/BookingCalendar';
 import BookingForm from './components/BookingForm';
@@ -64,6 +67,11 @@ import { calculatePlayerCost } from './utils/timeSlots';
 function App() {
   const { user, loading: authLoading, error: authError, signIn, signOut, createUserAccount, updateUserRole, updatePassword, getAllUsers, toggleUserStatus, deleteUser, resetUserPassword, isAdmin, isPlayer, isAuthenticated } = useAuth();
   
+  const isEmployee = () => user?.role === 'employee';
+  const isStaff = () => isAdmin() || isEmployee();
+  const can = (permission: string) => hasPermission(user, permission);
+  const allowEmployee = (permission: string) => !isEmployee() || can(permission);
+
   const {
     courts: dbCourts,
     players: dbPlayers,
@@ -88,7 +96,7 @@ function App() {
     setTournaments: setDbTournaments,
     setSales: setDbSales,
     setCurrentAccountEntries: setDbCurrentAccountEntries
-  } = useSupabaseData(!!user);
+  } = useSupabaseData(user);
 
   const [users, setUsers] = useState<AppUser[]>([]);
 
@@ -271,7 +279,7 @@ function App() {
     const shouldGenerate = !generationState.hasGenerated || 
                           generationState.lastRecurringCount !== recurringCount;
     
-    if (shouldGenerate && recurringCount > 0) {
+    if (shouldGenerate && recurringCount > 0 && (!isEmployee() || can('recurring.create') || can('recurring.edit'))) {
       console.log('Generating recurring bookings...', {
         recurringCount,
         bookingCount,
@@ -318,6 +326,14 @@ function App() {
     }
   }, [currentRecurringBookings.length, currentBookings.length, generationState.hasGenerated]);
 
+  const permissionKey = JSON.stringify(user?.permissions ?? []);
+  useEffect(() => {
+    if (user?.role === 'employee' && !hasPermission(user, tabPermissions[activeTab])) {
+      const firstTab = Object.keys(tabPermissions).find(tab => hasPermission(user, tabPermissions[tab]));
+      setActiveTab(firstTab ?? 'no-access');
+    }
+  }, [user?.id, user?.role, permissionKey, activeTab]);
+
   // Load users from app-level system
   useEffect(() => {
     if (isAuthenticated() && isAdmin()) {
@@ -326,7 +342,7 @@ function App() {
         setUsers(appUsers);
       })();
     }
-  }, [user, isAuthenticated, isAdmin]);
+  }, [user?.id, user?.role]);
 
   // Show loading screen during authentication
   if (authLoading) {
@@ -393,8 +409,8 @@ function App() {
     return await signIn(username, password);
   };
 
-  const handleCreateUser = async (username: string, password: string, role: 'admin' | 'player', playerId?: string) => {
-    const result = await createUserAccount(username, password, role, playerId);
+  const handleCreateUser = async (username: string, password: string, role: UserRole, playerId?: string, permissions: string[] = []) => {
+    const result = await createUserAccount(username, password, role, playerId, permissions);
     if (result.success) {
       const appUsers = await getAllUsers();
       setUsers(appUsers);
@@ -403,13 +419,13 @@ function App() {
   };
 
   const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
-    toggleUserStatus(userId, isActive);
+    await toggleUserStatus(userId, isActive);
     const appUsers = await getAllUsers();
     setUsers(appUsers);
   };
 
-  const handleUpdateUserRole = async (userId: string, role: 'admin' | 'player', playerId?: string) => {
-    const result = await updateUserRole(userId, role, playerId);
+  const handleUpdateUserRole = async (userId: string, role: UserRole, playerId?: string, permissions: string[] = []) => {
+    const result = await updateUserRole(userId, role, playerId, permissions);
     if (result.success) {
       const appUsers = await getAllUsers();
       setUsers(appUsers);
@@ -418,7 +434,7 @@ function App() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    deleteUser(userId);
+    await deleteUser(userId);
     const appUsers = await getAllUsers();
     setUsers(appUsers);
   };
@@ -438,6 +454,7 @@ function App() {
 
   // Court management
   const handleCourtSave = async (courtData: Omit<Court, 'id'> & { id?: string }) => {
+    if (!allowEmployee(courtData.id ? 'courts.edit' : 'courts.create')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         if (courtData.id) {
@@ -475,6 +492,7 @@ function App() {
   };
 
   const handleCourtDelete = async (courtId: string) => {
+    if (!allowEmployee('courts.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
     if (!confirm('¿Estás seguro de que quieres eliminar esta cancha?')) return;
     
     try {
@@ -492,6 +510,7 @@ function App() {
 
   // Player management
   const handlePlayerSave = async (playerData: Omit<PlayerProfile, 'id' | 'createdAt' | 'totalBookings' | 'lastBooking'> & { id?: string }) => {
+    if (!allowEmployee(playerData.id ? 'players.edit' : 'players.create')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         try {
@@ -554,6 +573,7 @@ function App() {
   };
 
   const handlePlayerDelete = async (playerId: string) => {
+    if (!allowEmployee('players.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
     if (!confirm('¿Estás seguro de que quieres eliminar este jugador?')) return;
     
     try {
@@ -571,6 +591,7 @@ function App() {
 
   // Consumable management
   const handleConsumableSave = async (consumableData: Omit<ConsumableItem, 'id'> & { id?: string }) => {
+    if (!allowEmployee(consumableData.id ? 'products.edit' : 'products.create')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         try {
@@ -620,6 +641,7 @@ function App() {
   };
 
   const handleConsumableDelete = async (consumableId: string) => {
+    if (!allowEmployee('products.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
     if (!confirm('¿Estás seguro de que quieres eliminar este consumible?')) return;
     
     try {
@@ -636,6 +658,7 @@ function App() {
   };
 
   const handleCategoriesUpdate = async (updatedCategories: ConsumableCategory[]) => {
+    if (!allowEmployee('products.categories')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         const previousCategoriesById = new Map(currentCategories.map(category => [category.id, category]));
@@ -716,6 +739,7 @@ function App() {
 
   // Booking management
   const handleBookingCreate = async (bookingData: Omit<Booking, 'id'>) => {
+    if (!allowEmployee('bookings.create')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         const bookingId = await bookingsService.create(bookingData);
@@ -752,6 +776,7 @@ function App() {
   };
 
   const handleBookingCancel = async (bookingId: string) => {
+    if (!allowEmployee('bookings.cancel')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         await bookingsService.update(bookingId, { status: 'cancelled' });
@@ -770,6 +795,7 @@ function App() {
   };
 
   const handleBookingEdit = (booking: Booking) => {
+    if (!allowEmployee('bookings.edit')) { alert('No tenés permiso para realizar esta acción'); return; }
     setEditingBooking(booking);
     setShowBookingEdit(true);
   };
@@ -790,6 +816,7 @@ function App() {
   };
 
   const syncCompletedBookingCurrentAccountEntries = async (booking: Booking, persistToSupabase: boolean) => {
+    if (isEmployee()) { await refetchData(); return; }
     const relatedEntries = currentCurrentAccountEntries.filter(entry => entry.relatedBookingId === booking.id);
 
     if (persistToSupabase) {
@@ -849,6 +876,7 @@ function App() {
   };
 
   const handleBookingUpdate = async (updatedBooking: Booking) => {
+    if (!allowEmployee('bookings.edit')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         await bookingsService.update(updatedBooking.id, updatedBooking);
@@ -875,11 +903,13 @@ function App() {
   };
 
   const handleBookingClose = (booking: Booking) => {
+    if (!allowEmployee('bookings.close')) { alert('No tenés permiso para realizar esta acción'); return; }
     setClosingBooking(booking);
     setShowTurnClose(true);
   };
 
   const handleTurnClose = async (updatedBooking: Booking) => {
+    if (!allowEmployee('bookings.close')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         await bookingsService.update(updatedBooking.id, updatedBooking);
@@ -903,6 +933,7 @@ function App() {
 
   // Recurring booking management
   const handleRecurringSave = async (recurringData: Omit<RecurringBooking, 'id' | 'createdAt'>) => {
+    if (!allowEmployee(editingRecurring ? 'recurring.edit' : 'recurring.create')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       const getBookingsWithUpdatedRecurringPlayer = () => {
         if (!editingRecurring) {
@@ -1042,6 +1073,7 @@ function App() {
   };
 
   const handleRecurringDelete = async (recurringId: string) => {
+    if (!allowEmployee('recurring.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
     if (!confirm('¿Estás seguro de que quieres eliminar este turno fijo?')) return;
     
     try {
@@ -1058,6 +1090,7 @@ function App() {
   };
 
   const handleRecurringToggle = async (recurringId: string) => {
+    if (!allowEmployee('recurring.edit')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       const recurring = currentRecurringBookings.find(r => r.id === recurringId);
       if (!recurring) return;
@@ -1081,6 +1114,7 @@ function App() {
   };
 
   const handleSkipDatesUpdate = async (recurringId: string, skipDates: string[]) => {
+    if (!allowEmployee('recurring.edit')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       const recurring = currentRecurringBookings.find(r => r.id === recurringId);
       const previousSkipDates = recurring?.skipDates || [];
@@ -1126,6 +1160,7 @@ function App() {
     unavailabilityData: Omit<CourtUnavailability, 'id' | 'createdAt'>,
     id?: string
   ) => {
+    if (!allowEmployee(id ? 'availability.edit' : 'availability.create')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         if (id) {
@@ -1156,6 +1191,7 @@ function App() {
   };
 
   const handleCourtUnavailabilityDelete = async (id: string) => {
+    if (!allowEmployee('availability.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
     if (!confirm('Estas seguro de que quieres eliminar este bloqueo?')) return;
 
     try {
@@ -1173,6 +1209,7 @@ function App() {
 
   // Tournament management
   const handleTournamentSave = async (tournamentData: Omit<Tournament, 'id' | 'createdAt'> & { id?: string }) => {
+    if (!allowEmployee('tournaments.manage')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         if (tournamentData.id) {
@@ -1207,6 +1244,7 @@ function App() {
   };
 
   const handleTournamentDelete = async (tournamentId: string) => {
+    if (!allowEmployee('tournaments.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
     if (!confirm('Seguro que quieres eliminar este torneo?')) return;
 
     try {
@@ -1224,6 +1262,7 @@ function App() {
 
   // Sale management
   const handleSaleSave = async (saleData: Omit<Sale, 'id' | 'createdAt'>) => {
+    if (!allowEmployee(editingSale ? 'sales.edit' : 'sales.create')) { alert('No tenés permiso para realizar esta acción'); return; }
     const buildSaleCurrentAccountEntry = (
       saleId: string
     ): Omit<CurrentAccountEntry, 'id' | 'createdAt'> | null => {
@@ -1243,6 +1282,7 @@ function App() {
     };
 
     const syncSaleCurrentAccountEntry = async (saleId: string, persistToSupabase: boolean) => {
+      if (isEmployee()) { await refetchData(); return; }
       const relatedEntry = currentCurrentAccountEntries.find(entry => entry.relatedSaleId === saleId);
       const entryData = buildSaleCurrentAccountEntry(saleId);
 
@@ -1331,6 +1371,7 @@ function App() {
   };
 
   const handleSaleDelete = async (saleId: string) => {
+    if (!allowEmployee('sales.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
     // Don't allow deletion of booking-derived sales
     if (saleId.startsWith('booking-')) {
       alert('No se pueden eliminar ventas derivadas de turnos finalizados');
@@ -1341,7 +1382,7 @@ function App() {
     
     // Find the sale to check if it has related current account entries
     const sale = currentSales.find(s => s.id === saleId);
-    if (sale && sale.paymentMethod === 'current_account') {
+    if (!isEmployee() && sale && sale.paymentMethod === 'current_account') {
       // Find and delete related current account entry
       const relatedEntry = currentCurrentAccountEntries.find(entry => 
         entry.relatedSaleId === saleId
@@ -1362,6 +1403,7 @@ function App() {
       if (isSupabaseDataReady) {
         await salesService.delete(saleId);
         setDbSales(prev => prev.filter(sale => sale.id !== saleId));
+        if (isEmployee()) await refetchData();
       } else {
         setLocalSales(prev => prev.filter(sale => sale.id !== saleId));
       }
@@ -1373,6 +1415,7 @@ function App() {
 
   // Current account management
   const handlePaymentSave = async (paymentData: Omit<CurrentAccountEntry, 'id' | 'createdAt'>) => {
+    if (!allowEmployee('accounts.pay')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
         const entryId = await currentAccountService.create(paymentData);
@@ -1399,6 +1442,7 @@ function App() {
   };
 
   const handleCurrentAccountEntryDelete = async (entryId: string) => {
+    if (!allowEmployee('accounts.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
     if (!confirm('¿Estás seguro de que quieres eliminar este movimiento?')) return;
     
     // Find the entry to check if it has related sales
@@ -1433,6 +1477,7 @@ function App() {
 
   // Navigation handlers
   const handleNewBooking = (prefilledData?: any) => {
+    if (!allowEmployee('bookings.create')) { alert('No tenés permiso para realizar esta acción'); return; }
     if (prefilledData) {
       setPrefilledBookingData(prefilledData);
     }
@@ -1452,7 +1497,7 @@ function App() {
 
   // Filter data based on user role
   const getFilteredBookings = () => {
-    if (isAdmin()) {
+    if (isStaff()) {
       return currentBookings;
     } else if (isPlayer() && currentPlayerProfile) {
       return currentBookings.filter(booking => 
@@ -1463,7 +1508,7 @@ function App() {
   };
 
   const getFilteredSales = () => {
-    if (isAdmin()) {
+    if (isStaff()) {
       return currentSales;
     } else if (isPlayer() && currentPlayerProfile) {
       return currentSales.filter(sale => sale.customer.id === currentPlayerProfile.id);
@@ -1472,7 +1517,7 @@ function App() {
   };
 
   const getFilteredCurrentAccountEntries = () => {
-    if (isAdmin()) {
+    if (isStaff()) {
       return currentCurrentAccountEntries;
     } else if (isPlayer() && currentPlayerProfile) {
       return currentCurrentAccountEntries.filter(entry => entry.playerId === currentPlayerProfile.id);
@@ -1485,24 +1530,29 @@ function App() {
   const filteredCurrentAccountEntries = getFilteredCurrentAccountEntries();
 
   return (
+    <AccessContext.Provider value={user}>
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <Sidebar
+        key={`${user?.id}:${user?.role}`}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={tab => { if (allowEmployee(tabPermissions[tab])) setActiveTab(tab); }}
         userRole={user?.role}
+        permissions={user?.permissions}
+        userId={user?.id}
         userName={currentPlayerProfile?.name || user?.username}
         onSignOut={signOut}
         onChangePassword={() => setShowChangePassword(true)}
       />
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1 transition-[margin] duration-200 lg:ml-64 lg:peer-data-[expanded=false]/sidebar:ml-16">
         <div className="p-6 pt-20 lg:pt-6">
+          {activeTab === 'no-access' && <div className="rounded-xl border border-gray-200 bg-white p-6"><h2 className="text-xl font-semibold">Sin módulos habilitados</h2><p className="mt-2 text-gray-600">Solicitá al administrador que configure los permisos de tu usuario.</p></div>}
           {/* Dashboard */}
-          {activeTab === 'dashboard' && (
+          {activeTab === 'dashboard' && allowEmployee('dashboard.view') && (
             <>
-              {isAdmin() ? (
+              {isStaff() ? (
                 <Dashboard
                   bookings={filteredBookings}
                   courts={currentCourts}
@@ -1523,7 +1573,7 @@ function App() {
           )}
 
           {/* Booking Calendar */}
-          {activeTab === 'reservas' && (
+          {activeTab === 'reservas' && allowEmployee('bookings.view') && (
             <BookingCalendar
               courts={currentCourts}
               bookings={currentBookings}
@@ -1539,7 +1589,7 @@ function App() {
           )}
 
           {/* Recurring Bookings (Admin only) */}
-          {activeTab === 'turnos-fijos' && isAdmin() && (
+          {activeTab === 'turnos-fijos' && can('recurring.view') && (
             <RecurringBookingList
               recurringBookings={currentRecurringBookings}
               players={currentPlayers}
@@ -1559,7 +1609,7 @@ function App() {
           )}
 
           {/* Court Unavailability (Admin only) */}
-          {activeTab === 'disponibilidad' && isAdmin() && (
+          {activeTab === 'disponibilidad' && can('availability.view') && (
             <CourtUnavailabilityManager
               courts={currentCourts}
               unavailabilities={currentCourtUnavailabilities}
@@ -1569,18 +1619,20 @@ function App() {
           )}
 
           {/* Tournaments */}
-          {activeTab === 'torneos' && (
+          {activeTab === 'torneos' && allowEmployee('tournaments.view') && (
             <TournamentManager
               tournaments={currentTournaments}
               players={currentPlayers}
-              isAdmin={isAdmin()}
+              isAdmin={can('tournaments.manage')}
+              canDelete={can('tournaments.delete')}
+              isEmployee={isEmployee()}
               onSave={handleTournamentSave}
               onDelete={handleTournamentDelete}
             />
           )}
 
           {/* Booking List */}
-          {activeTab === 'mis-reservas' && (
+          {activeTab === 'mis-reservas' && allowEmployee('bookings.view') && (
             <BookingList
               bookings={filteredBookings}
               user={user}
@@ -1591,7 +1643,7 @@ function App() {
           )}
 
           {/* Courts (Admin only) */}
-          {activeTab === 'canchas' && isAdmin() && (
+          {activeTab === 'canchas' && can('courts.view') && (
             <CourtList
               courts={currentCourts}
               onEditCourt={(court) => {
@@ -1604,7 +1656,7 @@ function App() {
           )}
 
           {/* Consumables (Admin only) */}
-          {activeTab === 'consumibles' && isAdmin() && (
+          {activeTab === 'consumibles' && can('products.view') && (
             <ConsumableList
               consumables={currentConsumables}
               categories={currentCategories}
@@ -1616,11 +1668,12 @@ function App() {
               }}
               onDeleteConsumable={handleConsumableDelete}
               onAddConsumable={() => setShowConsumableForm(true)}
+              onCategoriesUpdate={handleCategoriesUpdate}
             />
           )}
 
           {/* Players (Admin only) */}
-          {activeTab === 'jugadores' && isAdmin() && (
+          {activeTab === 'jugadores' && can('players.view') && (
             <PlayerList
               players={currentPlayers}
               onEditPlayer={(player) => {
@@ -1633,29 +1686,29 @@ function App() {
           )}
 
           {/* Sales */}
-          {activeTab === 'ventas' && (
+          {activeTab === 'ventas' && allowEmployee('sales.view') && (
             <SalesList
               sales={filteredSales}
               bookings={filteredBookings}
-              onAddSale={() => isAdmin() && setShowSaleForm(true)}
+              onAddSale={() => can('sales.create') && setShowSaleForm(true)}
               onViewSale={(sale) => {
                 setViewingSale(sale);
                 setShowSaleDetail(true);
               }}
               onEditSale={(sale) => {
-                if (isAdmin() && !sale.id.startsWith('booking-')) {
+                if (can('sales.edit') && !sale.id.startsWith('booking-')) {
                   setEditingSale(sale);
                   setShowSaleForm(true);
                 }
               }}
-              onDeleteSale={isAdmin() ? handleSaleDelete : () => {}}
+              onDeleteSale={can('sales.delete') ? handleSaleDelete : () => {}}
             />
           )}
 
           {/* Current Account */}
-          {activeTab === 'cuenta-corriente' && (
+          {activeTab === 'cuenta-corriente' && allowEmployee('accounts.view') && (
             <>
-              {isAdmin() ? (
+              {isStaff() ? (
                 <CurrentAccountList
                   players={currentPlayers}
                   currentAccountEntries={filteredCurrentAccountEntries}
@@ -1877,6 +1930,7 @@ function App() {
         />
       )}
     </div>
+    </AccessContext.Provider>
   );
 }
 

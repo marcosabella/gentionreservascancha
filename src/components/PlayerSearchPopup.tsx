@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
 import { Search, X, User, Plus, Check } from 'lucide-react';
 import { PlayerProfile, Player } from '../types';
@@ -70,13 +71,13 @@ const PlayerSearchPopup: React.FC<PlayerSearchPopupProps> = ({
           </div>
 
           {/* Create New Button */}
-          <button
+          <ActionButton permission="players.create"
             onClick={onCreateNew}
             className="w-full mb-4 flex items-center justify-center space-x-2 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             <span>Crear Nuevo Jugador</span>
-          </button>
+          </ActionButton>
 
           {/* Players List */}
           <div className="max-h-96 overflow-y-auto space-y-2">
@@ -142,13 +143,13 @@ const PlayerSearchPopup: React.FC<PlayerSearchPopupProps> = ({
               <p className="text-gray-600 mb-4">
                 {searchTerm ? 'Intenta con otros términos de búsqueda' : 'No hay jugadores registrados'}
               </p>
-              <button
+              <ActionButton permission="players.create"
                 onClick={onCreateNew}
                 className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 <span>Crear Nuevo Jugador</span>
-              </button>
+              </ActionButton>
             </div>
           )}
 

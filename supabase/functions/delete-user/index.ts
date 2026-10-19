@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { authorizeFunction } from '../_shared/authorize.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const denied = await authorizeFunction(req);
+    if (denied) return denied;
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 

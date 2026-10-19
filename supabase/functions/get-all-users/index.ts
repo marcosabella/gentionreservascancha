@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { authorizeFunction } from '../_shared/authorize.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,7 @@ type UserProfileRow = {
   id: string;
   username: string;
   role: string;
+  permissions: string[];
   player_id: string | null;
   is_active: boolean;
   created_at: string;
@@ -36,6 +38,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const denied = await authorizeFunction(req);
+    if (denied) return denied;
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -61,7 +65,7 @@ Deno.serve(async (req: Request) => {
 
     const { data, error } = await supabaseAdmin
       .from('user_profiles')
-      .select('id, username, role, player_id, is_active, created_at, last_login')
+      .select('id, username, role, player_id, is_active, created_at, last_login, permissions')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -88,6 +92,7 @@ Deno.serve(async (req: Request) => {
         username: profile.username,
         password: '',
         role: profile.role,
+        permissions: profile.role === 'employee' ? profile.permissions : [],
         playerId: profile.player_id,
         isActive: profile.is_active,
         createdAt: profile.created_at,

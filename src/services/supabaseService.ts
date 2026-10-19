@@ -1,4 +1,18 @@
 import { supabase } from '../lib/supabase';
+
+// Employees use atomic RPCs for operations that also modify related records.
+// The server checks current permissions from the database on every operation.
+async function employeeMutation(resource: string, action: string, recordId: string | null, payload: unknown = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
+  const { data: profile, error: profileError } = await supabase.from('user_profiles')
+    .select('role').eq('id', session.user.id).maybeSingle();
+  if (profileError) throw profileError;
+  if (profile?.role !== 'employee') return null;
+  const { data, error } = await supabase.rpc('employee_mutate', { resource, action, record_id: recordId, payload });
+  if (error) throw error;
+  return { id: data as string };
+}
 import { isSupabaseConfigured } from '../lib/supabase';
 import { 
   Court, 
@@ -361,6 +375,8 @@ export const consumablesService = {
 // Bookings
 export const bookingsService = {
   async create(booking: Omit<Booking, 'id' | 'createdAt'>) {
+    const employeeResult = await employeeMutation('bookings', 'create', null, booking);
+    if (employeeResult) return employeeResult.id;
     const { data: bookingData, error: bookingError } = await supabase
       .from('bookings')
       .insert({
@@ -425,6 +441,7 @@ export const bookingsService = {
   },
 
   async update(id: string, booking: Partial<Booking>) {
+    if (await employeeMutation('bookings', 'update', id, booking)) return;
     const { error: bookingError } = await supabase
       .from('bookings')
       .update({
@@ -719,6 +736,8 @@ export const tournamentsService = {
 // Sales
 export const salesService = {
   async create(sale: Omit<Sale, 'id' | 'createdAt'>) {
+    const employeeResult = await employeeMutation('sales', 'create', null, sale);
+    if (employeeResult) return employeeResult.id;
     const { data: saleData, error: saleError } = await supabase
       .from('sales')
       .insert({
@@ -763,6 +782,7 @@ export const salesService = {
   },
 
   async update(id: string, sale: Partial<Sale>) {
+    if (await employeeMutation('sales', 'update', id, sale)) return;
     const { error: saleError } = await supabase
       .from('sales')
       .update({
@@ -813,6 +833,7 @@ export const salesService = {
   },
 
   async delete(id: string) {
+    if (await employeeMutation('sales', 'delete', id)) return;
     const { error } = await supabase
       .from('sales')
       .delete()
@@ -825,6 +846,8 @@ export const salesService = {
 // Current Account Entries
 export const currentAccountService = {
   async create(entry: Omit<CurrentAccountEntry, 'id' | 'createdAt'>) {
+    const employeeResult = await employeeMutation('accounts', 'create', null, entry);
+    if (employeeResult) return employeeResult.id;
     const { data, error } = await supabase
       .from('current_account_entries')
       .insert({
@@ -846,6 +869,7 @@ export const currentAccountService = {
   },
 
   async update(id: string, entry: Partial<CurrentAccountEntry>) {
+    if (await employeeMutation('accounts', 'update', id, entry)) return;
     const { error } = await supabase
       .from('current_account_entries')
       .update({
@@ -865,6 +889,7 @@ export const currentAccountService = {
   },
 
   async delete(id: string) {
+    if (await employeeMutation('accounts', 'delete', id)) return;
     const { error } = await supabase
       .from('current_account_entries')
       .delete()

@@ -1,3 +1,4 @@
+import { ActionButton } from '../config/AccessContext';
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Users, DollarSign, X, Search, Plus, CreditCard as Edit2 } from 'lucide-react';
 import { Court, ConsumableItem, PlayerProfile, Player, Booking, RecurringBooking, CourtUnavailability } from '../types';
@@ -285,13 +286,13 @@ export default function BookingForm({
                       )}
                     </div>
                     {!isPlayerRole && (
-                      <button
+                      <ActionButton permission="players.edit"
                         type="button"
                         onClick={() => handleEditPlayer(organizerData)}
                         className="text-green-600 hover:text-green-800 transition-colors"
                       >
                         <Edit2 className="w-4 h-4" />
-                      </button>
+                      </ActionButton>
                     )}
                   </div>
                 ) : (
@@ -307,14 +308,14 @@ export default function BookingForm({
                 )}
               </div>
               {!isPlayerRole && (
-                <button
+                <ActionButton permission="players.create"
                   type="button"
                   onClick={() => setShowPlayerForm(true)}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center"
                 >
                   <Plus className="w-4 h-4 mr-1" />
                   Nuevo
-                </button>
+                </ActionButton>
               )}
             </div>
           </div>
