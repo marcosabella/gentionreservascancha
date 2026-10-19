@@ -49,24 +49,24 @@ const BookingDetailContent: React.FC<BookingDetailContentProps> = ({ booking, ge
 
       <div>
         <h4 className="mb-2 font-semibold text-gray-900">Jugadores ({booking.players.length})</h4>
-        <div className="overflow-x-auto rounded-lg border border-blue-100 bg-white">
-          <div className="min-w-[680px] divide-y divide-gray-100">
-            <div className="grid grid-cols-[minmax(190px,1.4fr)_minmax(130px,1fr)_minmax(150px,1fr)_minmax(120px,0.8fr)] gap-3 px-3 py-2 text-xs font-semibold uppercase text-gray-500">
+        <div role="region" aria-label="Lista de jugadores de la reserva" tabIndex={0} className="max-h-[32dvh] overflow-y-auto overscroll-contain rounded-lg border border-blue-100 bg-white">
+          <div className="w-full divide-y divide-gray-100">
+            <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)] gap-2 px-2 sm:gap-3 sm:px-3 py-2 text-xs font-semibold uppercase text-gray-500 sticky top-0 z-10 bg-white">
               <span>Jugador</span>
-              <span>Telefono</span>
+              <span>Teléfono</span>
               <span>Pago</span>
               <span className="text-right">Abonado</span>
             </div>
             {booking.players.map(player => (
               <div
                 key={player.id}
-                className="grid grid-cols-[minmax(190px,1.4fr)_minmax(130px,1fr)_minmax(150px,1fr)_minmax(120px,0.8fr)] gap-3 px-3 py-2 items-center whitespace-nowrap"
+                className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)] gap-2 px-2 sm:gap-3 sm:px-3 py-2 items-center [&>span]:min-w-0 [&>span]:[overflow-wrap:anywhere]"
               >
                 <span className="font-medium text-gray-900">
                   {player.name}
-                  {player.isOrganizer && <span className="ml-2 text-xs font-normal text-blue-700">Organizador</span>}
+                  {player.isOrganizer && <span className="block text-xs font-normal text-blue-700">Organizador</span>}
                 </span>
-                <span>{player.phone || 'Sin telefono'}</span>
+                <span>{player.phone || 'Sin teléfono'}</span>
                 <span>{getPlayerPaymentLabel(player)}</span>
                 <span className="text-right font-medium">
                   {booking.status === 'completed' ? formatCurrency(playerCosts[player.id] || 0) : '-'}

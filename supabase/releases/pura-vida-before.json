@@ -1,0 +1,21 @@
+{
+  "project": "qsvdpdifygmzdawxfyqv",
+  "site": "complejopuravida",
+  "availability_index": true,
+  "baseline_columns": 6,
+  "baseline_policies": 4,
+  "cash": null,
+  "counts": {
+    "accounts": 0,
+    "bookings": 0,
+    "players": 0,
+    "profiles": 1,
+    "sales": 0
+  },
+  "history": null,
+  "invalid_credits": 0,
+  "login_trigger": true,
+  "unmatched_profiles": 0,
+  "migrations": [],
+  "at": "2026-10-19T13:45:46.033Z"
+}

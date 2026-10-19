@@ -89,6 +89,7 @@ export interface ScheduleSettings {
 
 export interface PlayerProfile {
   id: string;
+  currentAccountEnabled?: boolean;
   name: string;
   email: string;
   phone: string;

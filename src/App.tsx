@@ -20,6 +20,7 @@ import SaleDetailModal from './components/SaleDetailModal';
 import CurrentAccountList from './components/CurrentAccountList';
 import CurrentAccountDetail from './components/CurrentAccountDetail';
 import PaymentForm from './components/PaymentForm';
+import CashManagement from './components/CashManagement';
 import RecurringBookingList from './components/RecurringBookingList';
 import RecurringBookingForm from './components/RecurringBookingForm';
 import SkipDatesManager from './components/SkipDatesManager';
@@ -63,6 +64,8 @@ import {
   currentAccountService 
 } from './services/supabaseService';
 import { calculatePlayerCost } from './utils/timeSlots';
+
+const operationError = (error: unknown, fallback: string) => error && typeof error === 'object' && 'message' in error ? String(error.message) : fallback;
 
 function App() {
   const { user, loading: authLoading, error: authError, signIn, signOut, createUserAccount, updateUserRole, updatePassword, getAllUsers, toggleUserStatus, deleteUser, resetUserPassword, isAdmin, isPlayer, isAuthenticated } = useAuth();
@@ -567,7 +570,7 @@ function App() {
       // Only show error if it's not a successful fallback to local data
       if (!(error instanceof Error && error.message === 'SUPABASE_ERROR')) {
         console.error('Error saving player:', error);
-        alert('Error al guardar el jugador');
+        alert(operationError(error, 'Error al guardar el jugador'));
       }
     }
   };
@@ -898,7 +901,7 @@ function App() {
       setEditingBooking(null);
     } catch (error) {
       console.error('Error updating booking:', error);
-      alert('Error al actualizar la reserva');
+      alert(operationError(error, 'Error al actualizar la reserva'));
     }
   };
 
@@ -927,7 +930,7 @@ function App() {
       setClosingBooking(null);
     } catch (error) {
       console.error('Error closing turn:', error);
-      alert('Error al finalizar el turno');
+      alert(operationError(error, 'Error al finalizar el turno'));
     }
   };
 
@@ -1366,7 +1369,7 @@ function App() {
       setEditingSale(null);
     } catch (error) {
       console.error('Error saving sale:', error);
-      alert('Error al guardar la venta');
+      alert(operationError(error, 'Error al guardar la venta'));
     }
   };
 
@@ -1409,7 +1412,7 @@ function App() {
       }
     } catch (error) {
       console.error('Error deleting sale:', error);
-      alert('Error al eliminar la venta');
+      alert(operationError(error, 'Error al eliminar la venta'));
     }
   };
 
@@ -1437,7 +1440,7 @@ function App() {
       setPaymentPlayer(null);
     } catch (error) {
       console.error('Error saving payment:', error);
-      alert('Error al registrar el pago');
+      alert(operationError(error, 'Error al registrar el pago'));
     }
   };
 
@@ -1740,6 +1743,8 @@ function App() {
           )}
 
           {/* User Management (Admin only) */}
+          {activeTab === 'caja' && can('cash.view') && <CashManagement user={user!} />}
+
           {activeTab === 'usuarios' && isAdmin() && (
             <UserManagement
               users={users}

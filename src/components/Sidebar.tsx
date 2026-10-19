@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Menu, X, Calendar, Clock, MapPin, ShoppingCart, Users, CreditCard, Home,
   ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, Key, Shield,
-  Trophy, List, CalendarOff,
+  Trophy, List, CalendarOff, Banknote,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { complexName } from '../config/complex';
@@ -47,6 +47,7 @@ const adminNavigation: (NavigationLink | NavigationGroup)[] = [
     children: [
       { id: 'ventas', label: 'Ventas', icon: ShoppingCart },
       { id: 'cuenta-corriente', label: 'Cuentas corrientes', icon: CreditCard },
+      { id: 'caja', label: 'Caja', icon: Banknote },
     ],
   },
   { id: 'torneos', label: 'Torneos', icon: Trophy },

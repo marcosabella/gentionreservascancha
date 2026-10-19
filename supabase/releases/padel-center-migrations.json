@@ -1,0 +1,85 @@
+{
+  "project": "zcixnnzxxkylotbjudhk",
+  "applied": [
+    {
+      "version": "20260430120000",
+      "name": "add_password_hash_to_user_profiles",
+      "mode": "verified-existing-baseline"
+    },
+    {
+      "version": "20260512120000",
+      "name": "add_player_gender_category",
+      "mode": "verified-existing-baseline"
+    },
+    {
+      "version": "20260512123000",
+      "name": "add_tournaments",
+      "mode": "verified-existing-baseline"
+    },
+    {
+      "version": "20260518120000",
+      "name": "add_court_unavailabilities",
+      "mode": "verified-existing-baseline"
+    },
+    {
+      "version": "20260518143000",
+      "name": "add_last_login_to_user_profiles",
+      "mode": "verified-existing-baseline"
+    },
+    {
+      "version": "20260518150000",
+      "name": "sync_last_login_from_auth",
+      "mode": "verified-existing-baseline"
+    },
+    {
+      "version": "20260521120000",
+      "name": "add_booking_player_payment_splits",
+      "mode": "verified-existing-baseline"
+    },
+    {
+      "version": "20261019120000",
+      "name": "employee_permissions",
+      "mode": "applied"
+    },
+    {
+      "version": "20261019160000",
+      "name": "cash_management",
+      "mode": "applied"
+    },
+    {
+      "version": "20261019170000",
+      "name": "cash_management_controls",
+      "mode": "applied"
+    },
+    {
+      "version": "20261019180000",
+      "name": "cash_sales_atomic",
+      "mode": "applied"
+    },
+    {
+      "version": "20261019190000",
+      "name": "player_current_account",
+      "mode": "applied"
+    },
+    {
+      "version": "20261019200000",
+      "name": "secure_user_profiles",
+      "mode": "applied"
+    }
+  ],
+  "beforeCounts": {
+    "accounts": 129,
+    "bookings": 485,
+    "players": 313,
+    "profiles": 54,
+    "sales": 279
+  },
+  "afterCounts": {
+    "accounts": 129,
+    "bookings": 485,
+    "players": 313,
+    "profiles": 54,
+    "sales": 279
+  },
+  "at": "2026-10-19T13:46:32.075Z"
+}

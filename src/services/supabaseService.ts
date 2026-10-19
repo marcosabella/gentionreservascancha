@@ -13,6 +13,17 @@ async function employeeMutation(resource: string, action: string, recordId: stri
   if (error) throw error;
   return { id: data as string };
 }
+
+async function adminSaleMutation(action: string, target: string | null, payload: unknown = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
+  const { data: profile, error: profileError } = await supabase.from('user_profiles').select('role').eq('id', session.user.id).maybeSingle();
+  if (profileError) throw profileError;
+  if (profile?.role !== 'admin') return null;
+  const { data, error } = await supabase.rpc('cash_save_sale', { action, target, payload });
+  if (error) throw error;
+  return { id: data as string };
+}
 import { isSupabaseConfigured } from '../lib/supabase';
 import { 
   Court, 
@@ -156,7 +167,8 @@ export const playersService = {
           email: player.email,
           phone: player.phone,
           gender: player.gender || null,
-          category: player.category || null
+          category: player.category || null,
+          current_account_enabled: player.currentAccountEnabled ?? false
         })
         .select()
         .single();
@@ -173,6 +185,7 @@ export const playersService = {
         phone: data.phone,
         gender: data.gender,
         category: data.category,
+        currentAccountEnabled: data.current_account_enabled === true,
         totalBookings: data.total_bookings,
         lastBooking: data.last_booking,
         createdAt: data.created_at
@@ -197,6 +210,7 @@ export const playersService = {
           phone: player.phone,
           gender: player.gender || null,
           category: player.category || null,
+          current_account_enabled: player.currentAccountEnabled,
           total_bookings: player.totalBookings,
           last_booking: player.lastBooking
         })
@@ -216,6 +230,7 @@ export const playersService = {
         phone: data.phone,
         gender: data.gender,
         category: data.category,
+        currentAccountEnabled: data.current_account_enabled === true,
         totalBookings: data.total_bookings,
         lastBooking: data.last_booking,
         createdAt: data.created_at
@@ -442,6 +457,14 @@ export const bookingsService = {
 
   async update(id: string, booking: Partial<Booking>) {
     if (await employeeMutation('bookings', 'update', id, booking)) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data: profile, error: profileError } = await supabase.from('user_profiles').select('role').eq('id', session?.user.id).maybeSingle();
+    if (profileError) throw profileError;
+    if (profile?.role === 'admin') {
+      const { error } = await supabase.rpc('cash_save_booking', { target: id, payload: booking });
+      if (error) throw error;
+      return;
+    }
     const { error: bookingError } = await supabase
       .from('bookings')
       .update({
@@ -738,6 +761,8 @@ export const salesService = {
   async create(sale: Omit<Sale, 'id' | 'createdAt'>) {
     const employeeResult = await employeeMutation('sales', 'create', null, sale);
     if (employeeResult) return employeeResult.id;
+    const adminResult = await adminSaleMutation('create', null, sale);
+    if (adminResult) return adminResult.id;
     const { data: saleData, error: saleError } = await supabase
       .from('sales')
       .insert({
@@ -783,6 +808,7 @@ export const salesService = {
 
   async update(id: string, sale: Partial<Sale>) {
     if (await employeeMutation('sales', 'update', id, sale)) return;
+    if (await adminSaleMutation('update', id, sale)) return;
     const { error: saleError } = await supabase
       .from('sales')
       .update({
@@ -834,6 +860,7 @@ export const salesService = {
 
   async delete(id: string) {
     if (await employeeMutation('sales', 'delete', id)) return;
+    if (await adminSaleMutation('delete', id)) return;
     const { error } = await supabase
       .from('sales')
       .delete()

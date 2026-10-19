@@ -1,0 +1,126 @@
+{
+  "project": "zcixnnzxxkylotbjudhk",
+  "site": "padelcenter",
+  "availability_index": true,
+  "baseline_columns": 6,
+  "baseline_policies": 4,
+  "cash": null,
+  "counts": {
+    "accounts": 129,
+    "bookings": 485,
+    "players": 313,
+    "profiles": 54,
+    "sales": 279
+  },
+  "history": "supabase_migrations.schema_migrations",
+  "invalid_credits": 0,
+  "login_trigger": true,
+  "unmatched_profiles": 0,
+  "migrations": [
+    {
+      "name": "rapid_paper",
+      "version": "20250807123307"
+    },
+    {
+      "name": "rustic_feather",
+      "version": "20250807133406"
+    },
+    {
+      "name": "little_cliff",
+      "version": "20250807134044"
+    },
+    {
+      "name": "twilight_delta",
+      "version": "20250807140551"
+    },
+    {
+      "name": "navy_cliff",
+      "version": "20250807141736"
+    },
+    {
+      "name": "broken_tower",
+      "version": "20250813005533"
+    },
+    {
+      "name": "curly_river",
+      "version": "20250813034825"
+    },
+    {
+      "name": "misty_scene",
+      "version": "20250813040025"
+    },
+    {
+      "name": "small_wood",
+      "version": "20250813040810"
+    },
+    {
+      "name": "quiet_forest",
+      "version": "20250813043504"
+    },
+    {
+      "name": "cold_crystal",
+      "version": "20250813052309"
+    },
+    {
+      "name": "withered_silence",
+      "version": "20250813053924"
+    },
+    {
+      "name": "noisy_fountain",
+      "version": "20250813054233"
+    },
+    {
+      "name": "floating_math",
+      "version": "20250813054405"
+    },
+    {
+      "name": "calm_sound",
+      "version": "20250813055106"
+    },
+    {
+      "name": "throbbing_manor",
+      "version": "20250907210613"
+    },
+    {
+      "name": "fancy_paper",
+      "version": "20250909001608"
+    },
+    {
+      "name": "mute_oasis",
+      "version": "20250930112920"
+    },
+    {
+      "name": "fix_user_profiles_trigger",
+      "version": "20251203095030"
+    },
+    {
+      "name": "add_username_to_user_profiles",
+      "version": "20251204090719"
+    },
+    {
+      "name": "fix_user_profiles_policies",
+      "version": "20260209095702"
+    },
+    {
+      "name": "fix_user_profiles_rls_policies",
+      "version": "20260209095720"
+    },
+    {
+      "name": "create_system_config_table",
+      "version": "20260210135658"
+    },
+    {
+      "name": "update_admin_management",
+      "version": "20260210135708"
+    },
+    {
+      "name": "add_player_gender_and_category",
+      "version": "20260316110838"
+    },
+    {
+      "name": "allow_multiple_active_tournaments",
+      "version": "20260723120000"
+    }
+  ],
+  "at": "2026-10-19T13:46:17.239Z"
+}

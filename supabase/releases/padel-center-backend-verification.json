@@ -1,0 +1,36 @@
+{
+  "project": "zcixnnzxxkylotbjudhk",
+  "migrationsVerified": 14,
+  "newMigrationContentsMatch": true,
+  "security": {
+    "active_players": 52,
+    "anonymous_grants": 0,
+    "cash_movements": 0,
+    "cash_sessions": 0,
+    "enabled_players": 313,
+    "exposed_definers": 0,
+    "hash_exposed": false,
+    "permissions_editable": false,
+    "role_editable": false
+  },
+  "admin": {
+    "booking_rows": 485,
+    "cash_rows": 0,
+    "check_role": "admin",
+    "court_rows": 1,
+    "may_open_cash": true,
+    "player_rows": 313
+  },
+  "player": {
+    "booking_rows": 485,
+    "cash_rows": 0,
+    "check_role": "player",
+    "court_rows": 1,
+    "may_open_cash": false,
+    "player_rows": 313
+  },
+  "anonymousDataBlocked": true,
+  "administrativeFunctionsProtected": 7,
+  "invalidLoginRejected": true,
+  "at": "2026-10-19T15:34:01.214Z"
+}

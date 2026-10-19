@@ -9,7 +9,7 @@ interface ConfirmDialogProps {
   type?: 'confirm' | 'success' | 'info' | 'error';
   confirmText?: string;
   cancelText?: string;
-  maxWidth?: 'md' | '3xl';
+  maxWidth?: 'md' | '3xl' | '6xl';
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -71,22 +71,22 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   };
 
   const colors = getColors();
-  const widthClass = maxWidth === '3xl' ? 'max-w-3xl' : 'max-w-md';
+  const widthClass = maxWidth === '6xl' ? 'max-w-6xl' : maxWidth === '3xl' ? 'max-w-3xl' : 'max-w-md';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className={`bg-white rounded-xl shadow-2xl ${widthClass} w-full`}>
-        <div className="p-6">
-          <div className="flex items-center space-x-3 mb-4">
+      <div className={`bg-white rounded-xl shadow-2xl ${widthClass} w-full max-h-[90dvh] flex flex-col overflow-hidden`}>
+        <div className="p-6 flex flex-col min-h-0">
+          <div className="flex items-center space-x-3 mb-4 shrink-0">
             {getIcon()}
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           </div>
           
-          <div className={`p-4 rounded-lg ${colors.bg} ${colors.border} border mb-6`}>
+          <div className={`p-4 rounded-lg ${colors.bg} ${colors.border} border mb-6 min-h-0 overflow-y-auto overscroll-contain`}>
             {content || <p className="text-gray-700 whitespace-pre-line">{message}</p>}
           </div>
 
-          <div className="flex space-x-3">
+          <div className="flex space-x-3 shrink-0">
             {type === 'confirm' && (
               <button
                 onClick={onCancel}

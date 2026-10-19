@@ -5,6 +5,28 @@ import { formatCurrency } from '../utils/timeSlots';
 import PlayerSearchPopup from './PlayerSearchPopup';
 import PlayerEditForm from './PlayerEditForm';
 import ConsumableSearchPopup from './ConsumableSearchPopup';
+import { isCreditEnabled, playersWithUnauthorizedCredit } from '../utils/playerCredit';
+
+// Keep the editable text while typing; format the settled amount to cents.
+function PaymentAmountInput({ amount, onChange }: { amount: number; onChange: (amount: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      aria-label="Importe del pago"
+      min="0"
+      step="0.01"
+      value={draft ?? amount.toFixed(2)}
+      onFocus={() => setDraft(amount.toFixed(2))}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        onChange(Number(event.target.value));
+      }}
+      onBlur={() => setDraft(null)}
+      className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+    />
+  );
+}
 
 interface TurnCloseFormProps {
   booking: Booking;
@@ -12,7 +34,7 @@ interface TurnCloseFormProps {
   consumables: ConsumableItem[];
   categories: ConsumableCategory[];
   players: PlayerProfile[];
-  onSave: (updatedBooking: Booking) => void;
+  onSave: (updatedBooking: Booking) => void | Promise<void>;
   onPlayerSave: (player: Omit<PlayerProfile, 'id' | 'createdAt' | 'totalBookings' | 'lastBooking'> & { id?: string }) => void;
   onCancel: () => void;
 }
@@ -51,23 +73,26 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
     { value: 'current_account', label: 'Cuenta Corriente' }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     
     if (formData.players.length === 0) {
       alert('Debe mantener al menos el jugador organizador');
       return;
     }
 
-    // Verificar que todos los jugadores tengan método de pago seleccionado
-    const playersWithInvalidPayments = formData.players.filter(player => {
-      const expectedAmount = Math.round((playerCosts[player.id] || 0) * 100) / 100;
-      const paidAmount = getPlayerPaymentTotal(player);
-      return expectedAmount > 0 && Math.abs(paidAmount - expectedAmount) > 0.01;
-    });
-
-    if (playersWithInvalidPayments.length > 0) {
-      alert(`Los pagos deben coincidir con el costo de cada jugador: ${playersWithInvalidPayments.map(p => p.name).join(', ')}`);
+    const invalidPayment = formData.players.some(player =>
+      getPlayerPaymentSplits(player).some(split => !Number.isFinite(split.amount) || split.amount < 0)
+    );
+    if (invalidPayment) {
+      alert('Los importes de pago deben ser números válidos y no negativos');
+      return;
+    }
+    if (paymentDifferenceCents !== 0) {
+      alert('La suma de los pagos debe coincidir con el total del turno. ' +
+        (paymentDifferenceCents > 0 ? 'Falta: ' : 'Excedente: ') + formatCurrency(Math.abs(paymentDifferenceCents) / 100));
       return;
     }
     const updatedBooking: Booking = {
@@ -88,7 +113,10 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
       closedAt: new Date().toISOString()
     };
     
-    onSave(updatedBooking);
+    const blocked = playersWithUnauthorizedCredit(updatedBooking, booking, players);
+    if (blocked.length) { alert(`Cuenta corriente deshabilitada: ${blocked.map(player => player.name).join(', ')}. Elegí otro medio de pago.`); return; }
+    try { setIsSaving(true); await onSave(updatedBooking); }
+    finally { setIsSaving(false); }
   };
 
   const handlePlayerSelect = (playerProfile: PlayerProfile) => {
@@ -207,16 +235,20 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
   const playerCosts = calculatePlayerCosts();
   const getPlayerPaymentSplits = (player: Player) => {
     if (player.paymentSplits && player.paymentSplits.length > 0) {
-      return player.paymentSplits;
+      return player.paymentSplits.map(split => ({ ...split, amount: Number(split.amount.toFixed(2)) }));
     }
 
     return player.paymentMethod
-      ? [{ method: player.paymentMethod, amount: playerCosts[player.id] || 0 }]
-      : [{ method: 'cash' as PaymentMethod, amount: playerCosts[player.id] || 0 }];
+      ? [{ method: player.paymentMethod, amount: Number((playerCosts[player.id] || 0).toFixed(2)) }]
+      : [{ method: 'cash' as PaymentMethod, amount: Number((playerCosts[player.id] || 0).toFixed(2)) }];
   };
 
   const getPlayerPaymentTotal = (player: Player) =>
     getPlayerPaymentSplits(player).reduce((total, split) => total + (Number(split.amount) || 0), 0);
+
+  const totalPaymentsCents = formData.players.reduce((sum, player) =>
+    sum + getPlayerPaymentSplits(player).reduce((subtotal, split) => subtotal + Math.round(split.amount * 100), 0), 0);
+  const paymentDifferenceCents = Math.round(finalTotal * 100) - totalPaymentsCents;
 
   const updatePlayerPaymentSplit = (playerId: string, index: number, field: 'method' | 'amount', value: PaymentMethod | number) => {
     setFormData(prev => ({
@@ -344,92 +376,92 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
               </button>
               
               {/* Current Players */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                {formData.players.map((player) => (
-                  <div key={player.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h4 className="font-medium text-gray-900">
-                          {player.name} {player.isOrganizer && '(Organizador)'}
-                        </h4>
-                        <p className="text-sm text-gray-600">{player.email || 'Sin email'}</p>
-                        <p className="text-sm text-gray-500">{player.phone || 'Sin teléfono'}</p>
-                      </div>
-                      
-                      {!player.isOrganizer && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemovePlayer(player.id)}
-                          className="text-red-500 hover:text-red-700 transition-colors"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      )}
-                      
-                      {player.isOrganizer && (
-                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                          Organizador
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* Payment Method Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Métodos de pago
-                      </label>
-                      <div className="space-y-2">
-                        {getPlayerPaymentSplits(player).map((split, index) => (
-                          <div key={`${player.id}-${index}`} className="grid grid-cols-[minmax(0,1fr)_120px_32px] gap-2 items-center">
-                            <select
-                              value={split.method}
-                              onChange={(e) => updatePlayerPaymentSplit(player.id, index, 'method', e.target.value as PaymentMethod)}
-                              className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
-                            >
-                              {paymentMethods.map(paymentMethod => (
-                                <option key={paymentMethod.value} value={paymentMethod.value}>
-                                  {paymentMethod.label}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={split.amount}
-                              onChange={(e) => updatePlayerPaymentSplit(player.id, index, 'amount', Number(e.target.value))}
-                              className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
-                            />
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full min-w-[800px] text-sm text-left">
+                  <thead className="bg-gray-50 text-xs text-gray-600">
+                    <tr>
+                      <th scope="col" className="px-3 py-3 font-semibold">Jugador</th>
+                      <th scope="col" className="px-3 py-3 font-semibold">Contacto</th>
+                      <th scope="col" className="px-3 py-3 font-semibold min-w-[330px]">Métodos de pago / Importe</th>
+                      <th scope="col" className="px-3 py-3 font-semibold text-right whitespace-nowrap">Aporte</th>
+                      <th scope="col" className="px-2 py-3"><span className="sr-only">Acciones</span></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {formData.players.map(player => (
+                      <tr key={player.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3 align-top">
+                          <span className="font-medium text-gray-900">{player.name}</span>
+                          {player.isOrganizer && (
+                            <span className="block mt-1 text-xs text-green-700">Organizador</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 align-top text-xs text-gray-500">
+                          <div>{player.email || 'Sin email'}</div>
+                          <div className="mt-1">{player.phone || 'Sin teléfono'}</div>
+                        </td>
+                        <td className="px-3 py-3 align-top">
+                          <div className="space-y-2">
+                            {getPlayerPaymentSplits(player).map((split, index) => (
+                              <div key={player.id + '-' + index} className="grid grid-cols-[minmax(0,1fr)_110px_28px] gap-2 items-center">
+                                <select
+                                  aria-label={'Método de pago de ' + player.name}
+                                  value={split.method}
+                                  onChange={(e) => updatePlayerPaymentSplit(player.id, index, 'method', e.target.value as PaymentMethod)}
+                                  className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                                >
+                                  {paymentMethods.map(paymentMethod => (
+                                    <option key={paymentMethod.value} value={paymentMethod.value} disabled={paymentMethod.value === 'current_account' && !isCreditEnabled(player.id, players)}>
+                                      {paymentMethod.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <PaymentAmountInput
+                                  amount={split.amount}
+                                  onChange={(amount) => updatePlayerPaymentSplit(player.id, index, 'amount', amount)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removePlayerPaymentSplit(player.id, index)}
+                                  className="h-9 w-7 flex items-center justify-center text-red-500 hover:text-red-700 disabled:text-gray-300"
+                                  disabled={getPlayerPaymentSplits(player).length === 1}
+                                  title="Quitar forma de pago"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
                             <button
                               type="button"
-                              onClick={() => removePlayerPaymentSplit(player.id, index)}
-                              className="h-9 w-8 flex items-center justify-center text-red-500 hover:text-red-700 disabled:text-gray-300"
-                              disabled={getPlayerPaymentSplits(player).length === 1}
-                              title="Quitar forma de pago"
+                              onClick={() => addPlayerPaymentSplit(player.id)}
+                              className="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700"
                             >
-                              <Minus className="w-4 h-4" />
+                              <Plus className="w-3 h-3" />
+                              <span>Agregar pago</span>
                             </button>
                           </div>
-                        ))}
-                        <div className="flex items-center justify-between gap-2 text-xs">
-                          <button
-                            type="button"
-                            onClick={() => addPlayerPaymentSplit(player.id)}
-                            className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-700"
-                          >
-                            <Plus className="w-3 h-3" />
-                            <span>Agregar pago</span>
-                          </button>
-                          <span className={Math.abs(getPlayerPaymentTotal(player) - (playerCosts[player.id] || 0)) <= 0.01 ? 'text-green-600' : 'text-orange-600'}>
-                            {formatCurrency(getPlayerPaymentTotal(player))} / {formatCurrency(playerCosts[player.id] || 0)}
+                        </td>
+                        <td className="px-3 py-3 align-top text-right whitespace-nowrap">
+                          <span className="font-medium text-gray-900">
+                            {formatCurrency(getPlayerPaymentTotal(player))}
                           </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-
-                ))}
+                        </td>
+                        <td className="px-2 py-3 align-top">
+                          {!player.isOrganizer && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePlayer(player.id)}
+                              className="text-red-500 hover:text-red-700 transition-colors"
+                              title={'Quitar a ' + player.name}
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
             )}
@@ -572,10 +604,23 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
                 </div>
               </div>
               
+              <div className="space-y-2 mb-4 border-t pt-3" aria-live="polite">
+                <p className="text-sm text-gray-600">Cada jugador puede aportar un importe diferente. La suma debe cubrir el total del turno.</p>
+                <div className="flex justify-between font-medium">
+                  <span>Total de pagos:</span>
+                  <span>{formatCurrency(totalPaymentsCents / 100)}</span>
+                </div>
+                <div className={paymentDifferenceCents === 0 ? 'text-green-700 font-medium' : 'text-orange-700 font-medium'}>
+                  {paymentDifferenceCents === 0
+                    ? 'Total cubierto'
+                    : (paymentDifferenceCents > 0 ? 'Falta: ' : 'Excedente: ') + formatCurrency(Math.abs(paymentDifferenceCents) / 100)}
+                </div>
+              </div>
+
               {/* Player Cost Breakdown */}
               {formData.players.length > 0 && (
                 <div className="pt-4 border-t">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Costo por jugador:</h4>
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Aporte por jugador:</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {formData.players.map(player => (
                       <div key={player.id} className="flex items-center justify-between bg-white p-3 rounded-lg">
@@ -590,7 +635,7 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
                         </div>
                         <div className="text-right">
                           <span className="font-bold text-green-600">
-                            {formatCurrency(playerCosts[player.id] || 0)}
+                            {formatCurrency(getPlayerPaymentTotal(player))}
                           </span>
                         </div>
                       </div>
@@ -611,10 +656,11 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
               </button>
               <button
                 type="submit"
+                disabled={isSaving}
                 className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors flex items-center justify-center space-x-2"
               >
                 <Save className="w-5 h-5" />
-                <span>Finalizar Turno</span>
+                <span>{isSaving ? 'Guardando…' : 'Finalizar Turno'}</span>
               </button>
             </div>
           </form>

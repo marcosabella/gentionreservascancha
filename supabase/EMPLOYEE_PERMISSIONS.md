@@ -1,7 +1,9 @@
 # Rol Empleado — desarrollo local
 
-Estado: implementado y probado localmente. No se publicaron cambios de esta
-funcionalidad en Netlify, en las Edge Functions remotas ni en las bases remotas.
+Estado: publicado en Padel Center y Pura Vida el 19 de octubre de 2026 por pedido
+expreso, junto con Caja y la habilitación de cuenta corriente por jugador. Se
+actualizaron ambas bases, las funciones y los sitios. Ver releases/ para los
+resultados y las verificaciones. Las futuras publicaciones requieren pedido expreso.
 
 ## Uso
 
@@ -75,7 +77,11 @@ La compilación Vite y las comprobaciones Deno de las funciones actualizadas
 pasaron. El chequeo TypeScript general mantiene errores anteriores del proyecto;
 los archivos nuevos y la navegación se revisaron sin añadir errores de tipos.
 
-## Puesta en producción pendiente
+## Publicación
+
+Para el módulo Caja, sus permisos y sus migraciones posteriores, consultar
+`CASH_MANAGEMENT.md`. Caja incorpora también una actualización atómica de reservas
+para administradores y exige apertura antes de contabilizar cobros.
 
 Solo ante un pedido expreso: aplicar
 `migrations/20261019120000_employee_permissions.sql` en el proyecto Pura Vida,

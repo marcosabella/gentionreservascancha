@@ -5,6 +5,7 @@ import { formatCurrency } from '../utils/timeSlots';
 import { getArgentinaDateString, getArgentinaTimeString } from '../utils/date';
 import PlayerSearchPopup from './PlayerSearchPopup';
 import ConsumableSearchPopup from './ConsumableSearchPopup';
+import { isCreditEnabled } from '../utils/playerCredit';
 
 interface SaleFormProps {
   consumables: ConsumableItem[];
@@ -54,6 +55,13 @@ const SaleForm: React.FC<SaleFormProps> = ({
 
     if (!formData.customer.name.trim()) {
       alert('Debe ingresar el nombre del cliente');
+      return;
+    }
+
+    if (formData.paymentMethod === 'current_account' &&
+      (formData.customerType !== 'registered' || !isCreditEnabled(formData.customer.id, players) &&
+        !(sale?.paymentMethod === 'current_account' && sale.customer.id === formData.customer.id && totalAmount <= sale.totalAmount))) {
+      alert('Este jugador no tiene cuenta corriente habilitada. Seleccioná otro medio de pago.');
       return;
     }
 
@@ -347,12 +355,13 @@ const SaleForm: React.FC<SaleFormProps> = ({
                       type="radio"
                       name="paymentMethod"
                       value="current_account"
+                      disabled={!isCreditEnabled(formData.customer.id, players)}
                       checked={formData.paymentMethod === 'current_account'}
                       onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
                       className="text-green-600 focus:ring-green-500"
                     />
                     <span className="font-medium">Cuenta Corriente</span>
-                    <span className="text-sm text-gray-500">(Solo jugadores registrados)</span>
+                    <span className="text-sm text-gray-500">{isCreditEnabled(formData.customer.id, players) ? '(Habilitada)' : '(Deshabilitada para este jugador)'}</span>
                   </label>
                 )}
               </div>

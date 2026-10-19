@@ -96,6 +96,7 @@ export const useSupabaseData = (user: AuthUser | null = null) => {
         phone: player.phone,
         gender: player.gender,
         category: player.category,
+        currentAccountEnabled: player.current_account_enabled === true,
         totalBookings: player.total_bookings,
         lastBooking: player.last_booking,
         createdAt: player.created_at

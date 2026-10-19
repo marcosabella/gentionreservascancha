@@ -47,10 +47,15 @@ async function user(username, role, selected = [], keep = false, playerId = null
 let bootstrap = await ok(admin.from('user_profiles').select('id').eq('username','puravida').maybeSingle(), 'find local admin');
 if (!bootstrap) bootstrap = await user('puravida','admin',[],true);
 const reports = [];
+let cashSessionId;
 try {
+  const openCash = await ok(admin.from('cash_sessions').select('id').is('closed_at',null).is('deleted_at',null),'check local cash');
+  assert.equal(openCash.length,0,'Close the local cash register before running integration tests.');
+  const cashAdmin = await user(`caja_permisos_${run}`,'admin');
+  cashSessionId = await ok(cashAdmin.client.rpc('cash_command',{action:'open',payload:{amount:1000,notes:`Prueba permisos ${run}`}}),'open test cash');
   const court = await ok(admin.from('courts').insert({name:`Prueba ${run}`,description:'Prueba automatizada',price_per_turn:1000,features:[]}).select().single(), 'seed court');
   tableIds.courts.push(court.id);
-  const player = await ok(admin.from('players').insert({name:`Jugador ${run}`,email:`${run}@example.invalid`,phone:'000'}).select().single(),'seed player');
+  const player = await ok(admin.from('players').insert({name:`Jugador ${run}`,email:`${run}@example.invalid`,phone:'000',current_account_enabled:true}).select().single(),'seed player');
   tableIds.players.push(player.id);
   const product = await ok(admin.from('consumables').insert({name:`Producto ${run}`,description:'Prueba',price:100,category:'other',available:true}).select().single(),'seed product');
   tableIds.consumables.push(product.id);
@@ -176,6 +181,14 @@ try {
   for (const id of tableIds.sales) await admin.from('current_account_entries').delete().eq('related_sale_id',id);
   for (const table of ['current_account_entries','sales','bookings','consumables','players','courts']) {
     if(tableIds[table].length) await admin.from(table).delete().in('id',tableIds[table]);
+  }
+  if (cashSessionId) {
+    await admin.from('cash_audit').delete().eq('session_id',cashSessionId);
+    await admin.from('cash_movements').delete().eq('session_id',cashSessionId);
+    await admin.from('cash_sessions').delete().eq('id',cashSessionId);
+    for (const [table,kind] of [['sales','sale'],['bookings','booking'],['current_account_entries','account']]) {
+      if(tableIds[table].length) await admin.from('cash_source_balances').delete().eq('source_type',kind).in('source_id',tableIds[table]);
+    }
   }
   for(const id of authIds) await admin.auth.admin.deleteUser(id);
 }

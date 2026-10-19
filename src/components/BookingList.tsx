@@ -28,7 +28,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
     type: 'info' as 'confirm' | 'success' | 'info' | 'error',
     confirmText: 'OK',
     cancelText: 'Cancelar',
-    maxWidth: 'md' as 'md' | '3xl',
+    maxWidth: 'md' as 'md' | '3xl' | '6xl',
     onConfirm: () => {},
     onCancel: () => {}
   });
@@ -214,7 +214,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
       type: 'info',
       confirmText: 'Cerrar',
       cancelText: '',
-      maxWidth: '3xl',
+      maxWidth: '6xl',
       onConfirm: hideDialog,
       onCancel: hideDialog
     });

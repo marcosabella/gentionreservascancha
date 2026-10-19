@@ -113,6 +113,9 @@ const PlayerList: React.FC<PlayerListProps> = ({
                   Género / Categoría
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Cuenta corriente
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Estadísticas
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -158,6 +161,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                       </div>
                     </div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap"><span className={`rounded-full px-2 py-1 text-xs font-medium ${player.currentAccountEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>{player.currentAccountEnabled ? 'Habilitada' : 'Deshabilitada'}</span></td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1">
                       <div className="text-sm text-gray-900">

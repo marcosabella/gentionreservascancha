@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AppUser, AuthUser, UserRole } from '../types';
 import { normalizePermissions } from '../config/permissions';
 import { supabase } from '../lib/supabase';
+import { authUserFromProfile, InvalidProfileSession } from '../utils/sessionProfile';
 
 const normalizeUsername = (value: string) => value.trim().toLowerCase();
 
@@ -52,24 +53,11 @@ export const useAuth = () => {
     return responseData;
   };
 
-  const getSessionFallbackUser = (sessionUser: any): AuthUser => ({
-    id: sessionUser.user_metadata?.profile_id || sessionUser.id,
-    username:
-      sessionUser.user_metadata?.username ||
-      sessionUser.email?.split('@')[0] ||
-      'usuario',
-    role: sessionUser.user_metadata?.role || 'player',
-    permissions: [],
-    playerId: sessionUser.user_metadata?.player_id || sessionUser.user_metadata?.playerId,
-  });
-
-  const loadUserFromSession = async (session: any, fallbackUser?: AuthUser) => {
+  const loadUserFromSession = async (session: any) => {
     if (!session?.user || !supabase) {
       setUser(null);
       return null;
     }
-
-    const sessionFallbackUser = fallbackUser || getSessionFallbackUser(session.user);
 
     try {
       const { data: profileById, error: profileByIdError } = await supabase
@@ -82,47 +70,16 @@ export const useAuth = () => {
         throw profileByIdError;
       }
 
-      let profile = profileById;
-
-      if (!profile) {
-        const username = sessionFallbackUser.username;
-        const { data: profileByUsername, error: profileByUsernameError } = await supabase
-          .from('user_profiles')
-          .select('id, username, role, player_id, is_active, permissions')
-          .eq('username', username)
-          .maybeSingle();
-
-        if (profileByUsernameError) {
-          throw profileByUsernameError;
-        }
-
-        profile = profileByUsername;
-      }
-
-      if (profile && !profile.is_active) {
-        await supabase.auth.signOut();
-        setUser(null);
-        return null;
-      }
-
-      const authUser: AuthUser = {
-        id: profile?.id || sessionFallbackUser.id,
-        username: profile?.username || sessionFallbackUser.username,
-        role: profile?.role || sessionFallbackUser.role || 'player',
-        permissions: profile?.role === 'employee' ? normalizePermissions(profile.permissions) : [],
-        playerId: profile?.player_id ?? sessionFallbackUser.playerId,
-      };
+      const authUser = authUserFromProfile(session.user.id, profileById);
 
       setUser(authUser);
       return authUser;
     } catch (err) {
       console.error('Error loading profile from Supabase:', err);
-      if (sessionFallbackUser.role === 'employee') {
-        setUser(null);
-        return null;
-      }
-      setUser(sessionFallbackUser);
-      return sessionFallbackUser;
+      setUser(null);
+      setError(err instanceof Error ? err.message : 'No se pudo validar la sesión. Ingresá nuevamente.');
+      if (err instanceof InvalidProfileSession) await supabase.auth.signOut({ scope: 'local' });
+      return null;
     }
   };
 
@@ -244,14 +201,7 @@ export const useAuth = () => {
         return { success: false, error: errorMessage };
       }
 
-      const authUser: AuthUser = {
-        id: loginUser.id || signInData.user.user_metadata?.profile_id || signInData.user.id,
-        username: loginUser.username,
-        role: loginUser.role || 'player',
-        playerId: loginUser.playerId,
-      };
-
-      const loadedUser = await loadUserFromSession(signInData.session, authUser);
+      const loadedUser = await loadUserFromSession(signInData.session);
       if (!loadedUser) {
         setError('No se pudo cargar el perfil del usuario');
         setLoading(false);

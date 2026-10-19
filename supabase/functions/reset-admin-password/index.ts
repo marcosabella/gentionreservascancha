@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { authorizeFunction } from "../_shared/authorize.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,6 +41,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const authorization = await authorizeFunction(req);
+    if (authorization) return authorization;
     const { newPassword, resetToken }: ResetRequest = await req.json();
 
     if (!newPassword || newPassword.length < 6) {

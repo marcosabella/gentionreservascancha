@@ -5,9 +5,10 @@ export const employeeModules = [
   { id: 'bookings', label: 'Reservas', actions: [['view', 'Ver calendario y reservas'], ['create', 'Crear reservas'], ['edit', 'Modificar reservas y consumos'], ['cancel', 'Cancelar reservas'], ['close', 'Cerrar turnos y registrar sus cobros']] },
   { id: 'recurring', label: 'Turnos fijos', actions: [['view', 'Consultar'], ['create', 'Crear'], ['edit', 'Modificar, activar y gestionar excepciones'], ['delete', 'Eliminar']] },
   { id: 'availability', label: 'Bloqueos y disponibilidad', actions: [['view', 'Consultar'], ['create', 'Crear bloqueos'], ['edit', 'Modificar bloqueos'], ['delete', 'Eliminar bloqueos']] },
-  { id: 'players', label: 'Jugadores', actions: [['view', 'Consultar jugadores'], ['create', 'Crear jugadores'], ['edit', 'Modificar jugadores'], ['delete', 'Eliminar jugadores']] },
+  { id: 'players', label: 'Jugadores', actions: [['view', 'Consultar jugadores'], ['create', 'Crear jugadores'], ['edit', 'Modificar jugadores'], ['delete', 'Eliminar jugadores'], ['credit', 'Habilitar o deshabilitar cuenta corriente']] },
   { id: 'sales', label: 'Ventas', actions: [['view', 'Consultar ventas'], ['create', 'Registrar ventas'], ['edit', 'Modificar ventas'], ['delete', 'Eliminar ventas']] },
   { id: 'accounts', label: 'Cuentas corrientes', actions: [['view', 'Consultar saldos y movimientos'], ['pay', 'Registrar pagos'], ['delete', 'Eliminar movimientos']] },
+  { id: 'cash', label: 'Caja', actions: [['view', 'Ver caja y movimientos'], ['open', 'Abrir caja'], ['move', 'Registrar ingresos, gastos y retiros'], ['adjust', 'Anular movimientos manuales'], ['close', 'Arqueo y cierre'], ['edit', 'Modificar apertura y observaciones'], ['delete', 'Eliminar cajas'], ['reopen', 'Reabrir o restaurar cajas'], ['report', 'Consultar historial, auditoría y exportar reportes']] },
   { id: 'tournaments', label: 'Torneos', actions: [['view', 'Consultar torneos'], ['manage', 'Crear y administrar parejas, zonas y resultados'], ['delete', 'Eliminar torneos']] },
   { id: 'courts', label: 'Canchas y horarios', actions: [['view', 'Consultar'], ['create', 'Crear canchas'], ['edit', 'Modificar canchas, precios y horarios'], ['delete', 'Eliminar canchas']] },
   { id: 'products', label: 'Productos y precios', actions: [['view', 'Consultar productos'], ['create', 'Crear productos'], ['edit', 'Modificar productos y precios'], ['delete', 'Eliminar productos'], ['categories', 'Administrar categorías']] },
@@ -34,7 +35,7 @@ export const tabPermissions: Record<string, string> = {
   dashboard: 'dashboard.view', reservas: 'bookings.view', 'mis-reservas': 'bookings.view',
   'turnos-fijos': 'recurring.view', disponibilidad: 'availability.view', jugadores: 'players.view',
   ventas: 'sales.view', 'cuenta-corriente': 'accounts.view', torneos: 'tournaments.view',
-  canchas: 'courts.view', consumibles: 'products.view', usuarios: 'users.admin-only',
+  canchas: 'courts.view', consumibles: 'products.view', usuarios: 'users.admin-only', caja: 'cash.view',
 };
 
 export function canReadEmployeeTable(user: { role: UserRole; permissions?: readonly string[] } | null | undefined, table: string): boolean {

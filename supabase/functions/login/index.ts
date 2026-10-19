@@ -132,20 +132,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+    // Legacy accounts can have duplicate metadata and more users than a single
+    // listUsers page. Only the Auth identity referenced by the profile is valid.
+    const { data: canonicalIdentity, error: usersError } = await supabaseAdmin.auth.admin.getUserById(userProfile.id);
 
-    if (usersError || !users) {
+    if (usersError || !canonicalIdentity?.user) {
       return new Response(JSON.stringify({ error: "Error buscando usuarios Auth" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    let authUser = users.find((user: any) =>
-      user.id === userProfile.id ||
-      user.user_metadata?.username === userProfile.username ||
-      user.user_metadata?.normalized_username === normalizeUsername(userProfile.username)
-    );
+    let authUser = canonicalIdentity.user;
 
     if (userProfile.password_hash) {
       const passwordMatches = await verifyPassword(password, userProfile.password_hash);
@@ -199,35 +197,12 @@ Deno.serve(async (req: Request) => {
       player_id: userProfile.player_id,
     };
 
-    if (!authUser) {
-      const uniqueEmail = `${normalizeUsername(userProfile.username)}-${Date.now()}@local.app`;
-      const { data: createdAuthUser, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
-        email: uniqueEmail,
-        password,
-        email_confirm: true,
-        user_metadata: metadata,
-      });
-
-      if (createAuthError || !createdAuthUser.user) {
-        throw new Error(`Error creating auth user: ${createAuthError?.message || "Unknown error"}`);
-      }
-
-      authUser = createdAuthUser.user;
-    } else {
-      const { data: updatedAuthUser, error: syncAuthError } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
-        password,
-        user_metadata: {
-          ...authUser.user_metadata,
-          ...metadata,
-        },
-      });
-
-      if (syncAuthError) {
-        throw syncAuthError;
-      }
-
-      authUser = updatedAuthUser.user || authUser;
-    }
+    const { data: updatedAuthUser, error: syncAuthError } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+      password,
+      user_metadata: { ...authUser.user_metadata, ...metadata },
+    });
+    if (syncAuthError) throw syncAuthError;
+    authUser = updatedAuthUser.user || authUser;
 
     const { error: lastLoginError } = await supabaseAdmin
       .from("user_profiles")

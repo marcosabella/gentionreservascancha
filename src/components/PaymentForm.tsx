@@ -8,7 +8,7 @@ import { calculatePlayerBalance } from '../data/currentAccounts';
 interface PaymentFormProps {
   player: PlayerProfile;
   currentBalance: number;
-  onSave: (payment: Omit<CurrentAccountEntry, 'id' | 'createdAt'>) => void;
+  onSave: (payment: Omit<CurrentAccountEntry, 'id' | 'createdAt'>) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -24,8 +24,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     paymentMethod: 'cash' as 'cash' | 'card' | 'transfer'
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     
     if (formData.amount <= 0) {
       alert('El monto debe ser mayor a cero');
@@ -42,7 +44,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       paymentMethod: formData.paymentMethod
     };
 
-    onSave(payment);
+    try { setIsSaving(true); await onSave(payment); }
+    finally { setIsSaving(false); }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -182,16 +185,18 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               <button
                 type="button"
                 onClick={onCancel}
+                disabled={isSaving}
                 className="flex-1 px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
+                disabled={isSaving}
                 className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
               >
                 <Save className="w-5 h-5" />
-                <span>Registrar Pago</span>
+                <span>{isSaving ? 'Guardando…' : 'Registrar Pago'}</span>
               </button>
             </div>
           </form>

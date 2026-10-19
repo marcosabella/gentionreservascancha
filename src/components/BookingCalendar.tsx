@@ -53,7 +53,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
     type: 'info' as 'confirm' | 'success' | 'info' | 'error',
     confirmText: 'OK',
     cancelText: 'Cancelar',
-    maxWidth: 'md' as 'md' | '3xl',
+    maxWidth: 'md' as 'md' | '3xl' | '6xl',
     onConfirm: () => {},
     onCancel: () => {}
   });
@@ -151,7 +151,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
       type: 'info',
       confirmText: 'Cerrar',
       cancelText: '',
-      maxWidth: '3xl',
+      maxWidth: '6xl',
       onConfirm: () => setShowDialog(false),
       onCancel: () => setShowDialog(false)
     });

@@ -18,9 +18,10 @@ for (const [source, target] of [
   ['pura-vida-fix-profile-policies.sql', '20261019000001_profile_policies.sql'],
   ['pura-vida-publication-access.sql', '20261019000002_application_access.sql'],
 ]) copyFileSync(join('supabase', source), join(directory, 'migrations', target));
-const employeeMigration = '20261019120000_employee_permissions.sql';
-if (existsSync(join('supabase/migrations', employeeMigration))) {
-  copyFileSync(join('supabase/migrations', employeeMigration), join(directory, 'migrations', employeeMigration));
+for (const migration of ['20261019120000_employee_permissions.sql', '20261019160000_cash_management.sql', '20261019170000_cash_management_controls.sql', '20261019180000_cash_sales_atomic.sql', '20261019190000_player_current_account.sql', '20261019200000_secure_user_profiles.sql']) {
+  if (existsSync(join('supabase/migrations', migration))) {
+    copyFileSync(join('supabase/migrations', migration), join(directory, 'migrations', migration));
+  }
 }
 if (!existsSync(join(directory, 'functions'))) symlinkSync(resolve('supabase/functions'), join(directory, 'functions'), 'junction');
 console.log('Prepared isolated local Pura Vida environment (API 56000 / DB 56432).');
