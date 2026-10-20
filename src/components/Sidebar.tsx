@@ -5,7 +5,7 @@ import {
   Trophy, List, CalendarOff, Banknote,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { complexName } from '../config/complex';
+import { complexName, complexLogo } from '../config/complex';
 import { hasPermission, tabPermissions } from '../config/permissions';
 import type { UserRole } from '../types';
 
@@ -178,7 +178,7 @@ export default function Sidebar({
         aria-controls="main-sidebar"
       >
         {isMobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        <span className="text-sm font-semibold">{complexName}</span>
+        <span className="text-sm font-semibold">{complexLogo ? <img src={complexLogo} alt={complexName} className={complexName.toUpperCase() === 'PURA VIDA' ? 'h-10 w-auto object-contain' : 'h-11 w-20 rounded object-contain'} /> : complexName}</span>
       </button>
 
       {isMobileOpen && (
@@ -205,6 +205,13 @@ export default function Sidebar({
         } ${isMobileOpen ? 'translate-x-0' : 'invisible -translate-x-full lg:visible lg:translate-x-0'}`}
       >
         <div className={`flex shrink-0 items-center border-b border-gray-200 ${isExpanded ? 'justify-between gap-2 p-4' : 'flex-col gap-2 px-2 py-3'}`}>
+          {complexLogo ? (
+            <div className="min-w-0">
+              <h1><img src={complexLogo} alt={complexName} className={`h-auto max-w-full object-contain ${complexName.toUpperCase() === 'PURA VIDA' ? (isExpanded ? 'w-32' : 'w-10') : (isExpanded ? 'w-40 rounded-lg' : 'w-12 rounded')}`} /></h1>
+              {isExpanded && <p className="mt-1 text-center text-xs text-gray-500">Sistema de reservas</p>}
+              {isExpanded && import.meta.env.VITE_TEST_ENVIRONMENT === 'true' && <p className="mt-1 text-xs font-medium text-amber-700">Entorno de pruebas</p>}
+            </div>
+          ) : (
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-600">
               <MapPin className="h-5 w-5 text-white" aria-hidden="true" />
@@ -212,11 +219,12 @@ export default function Sidebar({
             {isExpanded && (
               <div className="min-w-0">
                 <h1 className="break-words text-base font-bold leading-5 text-gray-900">{complexName}</h1>
-                <p className="mt-1 text-xs text-gray-500">Sistema de reservas</p>
+                <p className="mt-1 text-center text-xs text-gray-500">Sistema de reservas</p>
                 {import.meta.env.VITE_TEST_ENVIRONMENT === 'true' && <p className="mt-1 text-xs font-medium text-amber-700">Entorno de pruebas</p>}
               </div>
             )}
           </div>
+          )}
           <button
             type="button"
             onClick={() => setIsExpanded(previous => !previous)}

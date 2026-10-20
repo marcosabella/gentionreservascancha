@@ -3,7 +3,7 @@ import { join, relative, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
-const siteName = 'complejopuravida';
+const siteName = 'multiespaciopuravida';
 const projectRef = 'qsvdpdifygmzdawxfyqv';
 const config = JSON.parse(readFileSync(join(process.env.APPDATA, 'netlify/Config/config.json'), 'utf8'));
 const token = (config.users[config.userId] ?? Object.values(config.users)[0])?.auth?.token;

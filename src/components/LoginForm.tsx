@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { LogIn, Eye, EyeOff, User, Lock } from 'lucide-react';
-import { complexName } from '../config/complex';
+import { complexName, complexLogo } from '../config/complex';
 
 interface LoginFormProps {
   onLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -14,6 +14,28 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading, error }) => {
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState({ width: 358.4, height: 560, scale: 0.8 });
+
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    const fitLogin = () => {
+      const width = card.offsetWidth;
+      const height = card.offsetHeight;
+      if (!width || !height) return;
+      const scale = Math.min(0.8, (window.innerWidth - 24) / width, (window.innerHeight - 24) / height);
+      setLayout({ width: width * scale, height: height * scale, scale });
+    };
+    const observer = new ResizeObserver(fitLogin);
+    observer.observe(card);
+    window.addEventListener('resize', fitLogin);
+    fitLogin();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', fitLogin);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,21 +48,28 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading, error }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+    <div className="login-screen min-h-dvh bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-3">
+      <div className="relative shrink-0" style={{ width: layout.width, height: layout.height }}>
+      <div ref={cardRef} className="login-card absolute left-0 top-0 origin-top-left bg-white rounded-2xl shadow-2xl p-8" style={{ transform: `scale(${layout.scale})` }}>
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{complexName}</h1>
+          {complexLogo ? (
+            <h1 className="mb-4"><img src={complexLogo} alt={complexName} className={`mx-auto h-auto max-w-full object-contain ${complexName.toUpperCase() === 'PURA VIDA' ? 'w-52' : 'w-64 rounded-xl'}`} /></h1>
+          ) : (
+            <>
+              <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <User className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{complexName}</h1>
+            </>
+          )}
           <p className="text-gray-600">Sistema de Gestión de Reservas</p>
           {import.meta.env.VITE_TEST_ENVIRONMENT === 'true' && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Entorno de pruebas · datos independientes de producción</p>}
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3" role="alert">
             <p className="text-red-700 text-sm">{error}</p>
           </div>
         )}
@@ -114,14 +143,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading, error }) => {
           <p className="text-xs text-gray-500">
             © {new Date().getFullYear()} {complexName} - Sistema de Gestión
           </p>
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs text-blue-700">
-              <strong>Sistema:</strong><br/>
-              Ingresa con tus credenciales de usuario<br/>
-              Contacta al administrador si olvidaste tu contraseña
-            </p>
-          </div>
         </div>
+      </div>
       </div>
     </div>
   );

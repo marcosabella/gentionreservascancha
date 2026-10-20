@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 
 const clients = {
   'padel-center': { project: 'zcixnnzxxkylotbjudhk', site: 'padelcenter', brand: 'PADEL CENTER' },
-  'pura-vida': { project: 'qsvdpdifygmzdawxfyqv', site: 'complejopuravida', brand: 'PURA VIDA' },
+  'pura-vida': { project: 'qsvdpdifygmzdawxfyqv', site: 'multiespaciopuravida', brand: 'PURA VIDA' },
 };
 const [command, name] = process.argv.slice(2);
 const client = clients[name];

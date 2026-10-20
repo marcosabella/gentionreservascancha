@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 
 if (process.argv.includes('--site-only')) {
-  const url = 'https://complejopuravida.netlify.app';
+  const url = 'https://multiespaciopuravida.netlify.app';
   const response = await fetch(url);
   const html = await response.text();
   const assetPath = html.match(/src="([^"]+\.js)"/)?.[1];
