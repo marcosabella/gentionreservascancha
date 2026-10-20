@@ -1,0 +1,19 @@
+PADEL CENTER - BUILD LOCAL
+
+1. Descomprima todo el ZIP en una carpeta.
+2. Necesita Node.js 18 o superior instalado (no requiere npm install).
+3. Ejecute INICIAR-PADEL-CENTER.cmd.
+4. Abra http://localhost:8080 en el navegador.
+5. Mantenga la ventana del servidor abierta mientras usa el sistema.
+
+El frontend se ejecuta localmente. El acceso, los datos y las funciones siguen
+conectados a la base REAL de PADEL CENTER en Supabase y requieren Internet.
+Las operaciones guardadas afectan a esa base. No es una copia de pruebas
+ni una base de datos sin conexión. Use sus credenciales habituales.
+
+Si el puerto 8080 está ocupado, abra CMD en esta carpeta y ejecute:
+  set PORT=8081
+  node servidor-local.mjs
+Luego abra http://localhost:8081.
+
+Build generado: 2026-10-19T20:27:18.463Z

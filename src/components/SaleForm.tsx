@@ -170,7 +170,7 @@ const SaleForm: React.FC<SaleFormProps> = ({
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">
@@ -234,6 +234,69 @@ const SaleForm: React.FC<SaleFormProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Payment Method */}
+                <div className="border-t border-gray-200 pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Método de Pago
+                  </label>
+                  <div className="grid grid-flow-col auto-cols-fr gap-2 sm:gap-3">
+                    <label className="flex min-w-0 items-center gap-2 px-2 py-3 sm:px-3 text-xs sm:text-sm border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="cash"
+                        checked={formData.paymentMethod === 'cash'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
+                        className="text-green-600 focus:ring-green-500"
+                      />
+                      <span className="font-medium">Efectivo</span>
+                    </label>
+                    
+                    <label className="flex min-w-0 items-center gap-2 px-2 py-3 sm:px-3 text-xs sm:text-sm border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="card"
+                        checked={formData.paymentMethod === 'card'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
+                        className="text-green-600 focus:ring-green-500"
+                      />
+                      <span className="font-medium">Tarjeta</span>
+                    </label>
+                    
+                    <label className="flex min-w-0 items-center gap-2 px-2 py-3 sm:px-3 text-xs sm:text-sm border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="transfer"
+                        checked={formData.paymentMethod === 'transfer'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
+                        className="text-green-600 focus:ring-green-500"
+                      />
+                      <span className="font-medium">Transferencia</span>
+                    </label>
+
+                  {/* Cuenta Corriente solo para jugadores registrados */}
+                  {formData.customerType === 'registered' && formData.customer.id && (
+                    <label className="flex min-w-0 items-center gap-2 px-2 py-3 sm:px-3 text-xs sm:text-sm border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="current_account"
+                        disabled={!isCreditEnabled(formData.customer.id, players)}
+                        checked={formData.paymentMethod === 'current_account'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
+                        className="text-green-600 focus:ring-green-500"
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium">Cuenta Corriente</span>
+                        <span className="block text-xs text-gray-500">{isCreditEnabled(formData.customer.id, players) ? 'Habilitada' : 'Deshabilitada'}</span>
+                      </span>
+                    </label>
+                  )}
+                  </div>
+                </div>
               </div>
 
               {/* Products */}
@@ -259,110 +322,47 @@ const SaleForm: React.FC<SaleFormProps> = ({
                     <p className="text-sm">Selecciona productos del menú superior</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {formData.items.map(item => (
-                      <div key={item.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-medium text-gray-900">{item.name}</h4>
-                          <button
-                            type="button"
-                            onClick={() => removeItem(item.id)}
-                            className="text-red-500 hover:text-red-700 transition-colors"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                        </div>
-                        
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Cantidad</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-sm"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Precio unitario</label>
-                            <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm">
-                              {formatCurrency(item.price)}
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Subtotal</label>
-                            <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm font-medium">
-                              {formatCurrency(item.subtotal)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div role="region" aria-label="Productos de la venta" tabIndex={0} className="max-h-[40dvh] overflow-y-auto overscroll-contain rounded-lg border border-gray-200">
+                    <table className="w-full table-fixed text-left text-sm">
+                      <thead className="sticky top-0 z-10 bg-gray-50 text-xs text-gray-600">
+                        <tr>
+                          <th scope="col" className="px-2 sm:px-3 py-3 font-semibold">Producto</th>
+                          <th scope="col" className="w-20 sm:w-24 px-2 py-3 font-semibold">Cantidad</th>
+                          <th scope="col" className="w-[23%] px-2 sm:px-3 py-3 text-right font-semibold">Precio unitario</th>
+                          <th scope="col" className="w-[23%] px-2 sm:px-3 py-3 text-right font-semibold">Subtotal</th>
+                          <th scope="col" className="w-10 px-2 py-3"><span className="sr-only">Quitar</span></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {formData.items.map(item => (
+                          <tr key={item.id} className="hover:bg-gray-50">
+                            <td className="px-2 sm:px-3 py-3 font-medium text-gray-900 [overflow-wrap:anywhere]">{item.name}</td>
+                            <td className="px-2 py-3">
+                              <input
+                                type="number"
+                                aria-label={'Cantidad de ' + item.name}
+                                min="1"
+                                step="1"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  const quantity = Number(e.target.value);
+                                  if (Number.isInteger(quantity) && quantity >= 1) updateItemQuantity(item.id, quantity);
+                                }}
+                                className="w-full min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                              />
+                            </td>
+                            <td className="px-2 sm:px-3 py-3 text-right text-gray-600 [overflow-wrap:anywhere]">{formatCurrency(item.price)}</td>
+                            <td className="px-2 sm:px-3 py-3 text-right font-medium text-gray-900 [overflow-wrap:anywhere]">{formatCurrency(item.subtotal)}</td>
+                            <td className="px-2 py-3">
+                              <button type="button" onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700 transition-colors" title={'Quitar ' + item.name}>
+                                <Minus className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                )}
-              </div>
-
-              {/* Payment Method */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Método de Pago
-                </label>
-                <div className="grid grid-cols-3 gap-4">
-                  <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="cash"
-                      checked={formData.paymentMethod === 'cash'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-                      className="text-green-600 focus:ring-green-500"
-                    />
-                    <span className="font-medium">Efectivo</span>
-                  </label>
-                  
-                  <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="card"
-                      checked={formData.paymentMethod === 'card'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-                      className="text-green-600 focus:ring-green-500"
-                    />
-                    <span className="font-medium">Tarjeta</span>
-                  </label>
-                  
-                  <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="transfer"
-                      checked={formData.paymentMethod === 'transfer'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-                      className="text-green-600 focus:ring-green-500"
-                    />
-                    <span className="font-medium">Transferencia</span>
-                  </label>
-                </div>
-                
-                {/* Cuenta Corriente solo para jugadores registrados */}
-                {formData.customerType === 'registered' && formData.customer.id && (
-                  <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 mt-3">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="current_account"
-                      disabled={!isCreditEnabled(formData.customer.id, players)}
-                      checked={formData.paymentMethod === 'current_account'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-                      className="text-green-600 focus:ring-green-500"
-                    />
-                    <span className="font-medium">Cuenta Corriente</span>
-                    <span className="text-sm text-gray-500">{isCreditEnabled(formData.customer.id, players) ? '(Habilitada)' : '(Deshabilitada para este jugador)'}</span>
-                  </label>
                 )}
               </div>
 

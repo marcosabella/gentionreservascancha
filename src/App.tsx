@@ -1557,10 +1557,8 @@ function App() {
             <>
               {isStaff() ? (
                 <Dashboard
-                  bookings={filteredBookings}
-                  courts={currentCourts}
-                  players={currentPlayers}
-                  sales={filteredSales}
+                  onTabChange={tab => { if (allowEmployee(tabPermissions[tab])) setActiveTab(tab); }}
+                  canAccess={can}
                 />
               ) : (
                 currentPlayerProfile && (

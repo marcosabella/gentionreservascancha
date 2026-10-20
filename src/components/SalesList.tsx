@@ -1,9 +1,10 @@
 import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
-import { CreditCard, Plus, Search, Calendar, Clock, User, Users, Filter, Eye, Trash2, CreditCard as Edit } from 'lucide-react';
+import { CreditCard, Plus, Search, Calendar, Filter, Eye, Trash2, CreditCard as Edit } from 'lucide-react';
 import { Sale, Booking } from '../types';
 import { formatCurrency, formatDate } from '../utils/timeSlots';
-import { getArgentinaDateString } from '../utils/date';
+import { getSalePaymentTotals, isSaleInPeriod, matchesSalePayment, salesPaymentMethods, summarizeSales } from '../utils/salesReport';
+import type { SalesPaymentFilter } from '../utils/salesReport';
 
 interface SalesListProps {
   sales: Sale[];
@@ -24,7 +25,10 @@ const SalesList: React.FC<SalesListProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'registered' | 'guest'>('all');
-  const [dateFilter, setDateFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState<SalesPaymentFilter>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const invalidPeriod = Boolean(dateFrom && dateTo && dateFrom > dateTo);
 
   // Combinar ventas directas con turnos finalizados
   const completedBookings = bookings.filter(booking =>
@@ -63,7 +67,7 @@ const SalesList: React.FC<SalesListProps> = ({
       subtotal: consumption.price * consumption.quantity
     })),
     totalAmount: booking.finalTotal || 0,
-    paymentMethod: 'cash' as const, // Default, se puede modificar
+    paymentMethod: 'cash' as const, // Payment totals below use each player's actual payments.
     notes: `Turno en ${booking.courtName}`,
     createdAt: booking.closedAt || booking.createdAt,
     bookingId: booking.id,
@@ -73,7 +77,8 @@ const SalesList: React.FC<SalesListProps> = ({
     bookingConsumptions: booking.consumptions
   }));
 
-  const allSales = [...sales, ...bookingSales].sort((a, b) => 
+  const bookingIds = new Set(completedBookings.map(booking => booking.id));
+  const allSales = [...sales.filter(sale => !(sale.type === 'booking' && sale.bookingId && bookingIds.has(sale.bookingId))), ...bookingSales].sort((a, b) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
@@ -83,32 +88,12 @@ const SalesList: React.FC<SalesListProps> = ({
                          (sale.courtName && sale.courtName.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesType = filterType === 'all' || sale.customerType === filterType;
-    const matchesDate = !dateFilter || sale.date === dateFilter;
+    const matchesDate = !invalidPeriod && isSaleInPeriod(sale.date, dateFrom, dateTo);
     
-    return matchesSearch && matchesType && matchesDate;
+    return matchesSearch && matchesType && matchesDate && matchesSalePayment(sale, paymentFilter);
   });
 
-  const totalSales = allSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-  const todaySales = allSales.filter(sale => sale.date === getArgentinaDateString());
-  const todayTotal = todaySales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-
-  const getPaymentMethodLabel = (method: string) => {
-    switch (method) {
-      case 'cash': return 'Efectivo';
-      case 'card': return 'Tarjeta';
-      case 'transfer': return 'Transferencia';
-     case 'current_account': return 'Cuenta Corriente';
-      default: return method;
-    }
-  };
-
-  const getCustomerTypeLabel = (type: string) => {
-    switch (type) {
-      case 'registered': return 'Jugador Registrado';
-      case 'guest': return 'Cliente Ocasional';
-      default: return type;
-    }
-  };
+  const summary = summarizeSales(filteredSales);
 
   const getSaleTypeLabel = (sale: Sale) => {
     return sale.type === 'booking' ? 'Turno' : 'Venta Directa';
@@ -137,63 +122,8 @@ const SalesList: React.FC<SalesListProps> = ({
         </ActionButton>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Total Ventas</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(totalSales)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Ventas Hoy</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(todayTotal)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Ventas Directas</p>
-              <p className="text-xl font-bold text-gray-900">
-                {allSales.filter(s => s.type === 'direct').length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Turnos Finalizados</p>
-              <p className="text-xl font-bold text-gray-900">
-                {allSales.filter(s => s.type === 'booking').length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 items-end gap-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
@@ -209,7 +139,7 @@ const SalesList: React.FC<SalesListProps> = ({
           <Filter className="w-5 h-5 text-gray-500" />
           <select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as any)}
+            onChange={(e) => setFilterType(e.target.value as 'all' | 'registered' | 'guest')}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
           >
             <option value="all">Todos los clientes</option>
@@ -219,14 +149,50 @@ const SalesList: React.FC<SalesListProps> = ({
         </div>
 
         <div>
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-          />
+          <label htmlFor="sales-payment-method" className="block text-sm font-medium text-gray-700 mb-1">Medio de pago</label>
+          <select id="sales-payment-method" value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value as SalesPaymentFilter)}
+            className="w-full min-w-0 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+            <option value="all">Todos los medios</option>
+            {salesPaymentMethods.map(method => <option key={method.id} value={method.id}>{method.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="sales-date-from" className="block text-sm font-medium text-gray-700 mb-1">Fecha desde</label>
+          <input id="sales-date-from" type="date" value={dateFrom} max={dateTo || undefined}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" />
+        </div>
+        <div>
+          <label htmlFor="sales-date-to" className="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>
+          <input id="sales-date-to" type="date" value={dateTo} min={dateFrom || undefined}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" />
         </div>
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <p className="text-gray-600">{filteredSales.length} ventas y turnos encontrados. Las fechas incluyen ambos días.</p>
+        <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); setSearchTerm(''); setFilterType('all'); setPaymentFilter('all'); }}
+          className="font-medium text-green-700 hover:text-green-800">Limpiar filtros</button>
+      </div>
+      {invalidPeriod && <p role="alert" className="text-sm text-red-600">La fecha desde debe ser anterior o igual a la fecha hasta.</p>}
+
+      <section aria-label="Totales del período" className="space-y-3">
+        <h3 className="text-lg font-semibold text-gray-900">Totales del período</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <p className="text-sm font-medium text-green-800">Total del período</p>
+            <p className="mt-1 text-xl font-bold text-green-800">{formatCurrency(summary.total)}</p>
+          </div>
+          {salesPaymentMethods.map(method => (
+            <div key={method.id} className="rounded-lg border border-gray-200 bg-white p-4">
+              <p className="text-sm text-gray-600">{method.label}</p>
+              <p className="mt-1 text-xl font-bold text-gray-900">{formatCurrency(summary.payments[method.id])}</p>
+            </div>
+          ))}
+        </div>
+        {summary.payments.unassigned > 0 && <p className="text-sm text-amber-800">Sin medio de pago registrado: {formatCurrency(summary.payments.unassigned)}</p>}
+      </section>
 
       {/* Sales Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -255,7 +221,9 @@ const SalesList: React.FC<SalesListProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSales.map(sale => (
+              {filteredSales.map(sale => {
+                const payments = getSalePaymentTotals(sale);
+                return (
                 <tr key={sale.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -292,13 +260,14 @@ const SalesList: React.FC<SalesListProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      sale.paymentMethod === 'cash' ? 'bg-green-100 text-green-800' :
-                      sale.paymentMethod === 'card' ? 'bg-blue-100 text-blue-800' :
-                      'bg-purple-100 text-purple-800'
-                    }`}>
-                      {getPaymentMethodLabel(sale.paymentMethod)}
-                    </span>
+                    <div className="space-y-1">
+                      {salesPaymentMethods.filter(method => payments[method.id] > 0).map(method => (
+                        <span key={method.id} className="block text-xs text-gray-700">
+                          {method.label}: {formatCurrency(payments[method.id])}
+                        </span>
+                      ))}
+                      {payments.unassigned > 0 && <span className="block text-xs text-amber-700">Sin medio: {formatCurrency(payments.unassigned)}</span>}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
@@ -327,7 +296,8 @@ const SalesList: React.FC<SalesListProps> = ({
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -336,10 +306,10 @@ const SalesList: React.FC<SalesListProps> = ({
           <div className="text-center py-12">
             <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || filterType !== 'all' || dateFilter ? 'No se encontraron ventas' : 'No hay ventas o turnos registrados'}
+              {searchTerm || filterType !== 'all' || paymentFilter !== 'all' || (dateFrom || dateTo) ? 'No se encontraron ventas' : 'No hay ventas o turnos registrados'}
             </h3>
             <p className="text-gray-600">
-              {searchTerm || filterType !== 'all' || dateFilter ? 'Intenta con otros filtros' : 'Las ventas directas y turnos finalizados aparecerán aquí'}
+              {searchTerm || filterType !== 'all' || paymentFilter !== 'all' || (dateFrom || dateTo) ? 'Intenta con otros filtros' : 'Las ventas directas y turnos finalizados aparecerán aquí'}
             </p>
           </div>
         )}
