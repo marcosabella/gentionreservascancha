@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tailwind uses rem for type, controls, spacing, and sidebar dimensions. */
+@media screen {
+  html:has(.app-shell) {
+    font-size: 80%;
+  }
+}
+
 .login-card {
   width: min(28rem, calc((100vw - 1.5rem) / 0.8));
 }

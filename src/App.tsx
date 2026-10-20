@@ -1534,7 +1534,7 @@ function App() {
 
   return (
     <AccessContext.Provider value={user}>
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="app-shell min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <Sidebar
         key={`${user?.id}:${user?.role}`}
