@@ -1,10 +1,10 @@
 {
   "project": "qsvdpdifygmzdawxfyqv",
-  "site": "complejopuravida",
+  "site": "multiespaciopuravida",
   "availability_index": true,
   "baseline_columns": 6,
   "baseline_policies": 4,
-  "cash": null,
+  "cash": "cash_sessions",
   "counts": {
     "accounts": 0,
     "bookings": 0,
@@ -12,10 +12,67 @@
     "profiles": 1,
     "sales": 0
   },
-  "history": null,
+  "history": "supabase_migrations.schema_migrations",
   "invalid_credits": 0,
   "login_trigger": true,
   "unmatched_profiles": 0,
-  "migrations": [],
-  "at": "2026-10-19T13:45:46.033Z"
+  "migrations": [
+    {
+      "name": "add_password_hash_to_user_profiles",
+      "version": "20260430120000"
+    },
+    {
+      "name": "add_player_gender_category",
+      "version": "20260512120000"
+    },
+    {
+      "name": "add_tournaments",
+      "version": "20260512123000"
+    },
+    {
+      "name": "add_court_unavailabilities",
+      "version": "20260518120000"
+    },
+    {
+      "name": "add_last_login_to_user_profiles",
+      "version": "20260518143000"
+    },
+    {
+      "name": "sync_last_login_from_auth",
+      "version": "20260518150000"
+    },
+    {
+      "name": "add_booking_player_payment_splits",
+      "version": "20260521120000"
+    },
+    {
+      "name": "allow_multiple_active_tournaments",
+      "version": "20260723120000"
+    },
+    {
+      "name": "employee_permissions",
+      "version": "20261019120000"
+    },
+    {
+      "name": "cash_management",
+      "version": "20261019160000"
+    },
+    {
+      "name": "cash_management_controls",
+      "version": "20261019170000"
+    },
+    {
+      "name": "cash_sales_atomic",
+      "version": "20261019180000"
+    },
+    {
+      "name": "player_current_account",
+      "version": "20261019190000"
+    },
+    {
+      "name": "secure_user_profiles",
+      "version": "20261019200000"
+    }
+  ],
+  "at": "2026-10-22T11:47:16.438Z"
 }
