@@ -4,11 +4,11 @@
   "availability_index": true,
   "baseline_columns": 6,
   "baseline_policies": 4,
-  "cash": null,
+  "cash": "cash_sessions",
   "counts": {
-    "accounts": 129,
-    "bookings": 485,
-    "players": 313,
+    "accounts": 130,
+    "bookings": 501,
+    "players": 317,
     "profiles": 54,
     "sales": 279
   },
@@ -118,9 +118,61 @@
       "version": "20260316110838"
     },
     {
+      "name": "add_password_hash_to_user_profiles",
+      "version": "20260430120000"
+    },
+    {
+      "name": "add_player_gender_category",
+      "version": "20260512120000"
+    },
+    {
+      "name": "add_tournaments",
+      "version": "20260512123000"
+    },
+    {
+      "name": "add_court_unavailabilities",
+      "version": "20260518120000"
+    },
+    {
+      "name": "add_last_login_to_user_profiles",
+      "version": "20260518143000"
+    },
+    {
+      "name": "sync_last_login_from_auth",
+      "version": "20260518150000"
+    },
+    {
+      "name": "add_booking_player_payment_splits",
+      "version": "20260521120000"
+    },
+    {
       "name": "allow_multiple_active_tournaments",
       "version": "20260723120000"
+    },
+    {
+      "name": "employee_permissions",
+      "version": "20261019120000"
+    },
+    {
+      "name": "cash_management",
+      "version": "20261019160000"
+    },
+    {
+      "name": "cash_management_controls",
+      "version": "20261019170000"
+    },
+    {
+      "name": "cash_sales_atomic",
+      "version": "20261019180000"
+    },
+    {
+      "name": "player_current_account",
+      "version": "20261019190000"
+    },
+    {
+      "name": "secure_user_profiles",
+      "version": "20261019200000"
     }
   ],
-  "at": "2026-10-19T13:46:17.239Z"
+  "at": "2026-10-22T11:26:30.404Z"
 }

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Banknote, RefreshCw, Download, Printer, LockKeyhole, Plus, X } from 'lucide-react';
+import { Banknote, RefreshCw, Download, Printer, LockKeyhole, Plus, X, Eye } from 'lucide-react';
+import CashMovementDetail from './CashMovementDetail';
+import { cashMovementRows } from '../utils/cashRows';
+import type { CashMovementRow } from '../utils/cashRows';
 import type { AuthUser } from '../types';
 import type { CashMovement, CashSession, CashAudit } from '../types/cash';
 import { cashService } from '../services/cashService';
@@ -17,6 +20,7 @@ export default function CashManagement({ user }: { user: AuthUser }) {
   const [sessions, setSessions] = useState<CashSession[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [movements, setMovements] = useState<CashMovement[]>([]);
+  const [detail, setDetail] = useState<CashMovementRow | null>(null);
   const [audit, setAudit] = useState<CashAudit[]>([]);
   const [showDeleted, setShowDeleted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -71,8 +75,13 @@ export default function CashManagement({ user }: { user: AuthUser }) {
   const totals = selected ? cashTotals(selected, movements) : null;
   const reversed = new Set(movements.map(m => m.reversal_of).filter(Boolean));
   const history = sessions.filter(s => (showDeleted || !s.deleted_at) && (!from || localDay(s.opened_at) >= from) && (!to || localDay(s.opened_at) <= to));
-  const visible = movements.filter(m => (method === 'all' || m.method === method) &&
-    `${m.description} ${m.actor_name} ${m.source_id ?? ''} ${m.source_type ? cashSourceLabels[m.source_type] : 'Manual'}`.toLocaleLowerCase('es').includes(search.toLocaleLowerCase('es')));
+  const visible = cashMovementRows(movements).filter(m => (method === 'all' || m.entries.some(entry => entry.method === method)) &&
+    `${m.description} ${(m.source_detail ?? []).join(' ')} ${m.actor_name} ${m.source_id ?? ''} ${m.source_type ? cashSourceLabels[m.source_type] : 'Manual'}`.toLocaleLowerCase('es').includes(search.toLocaleLowerCase('es')));
+  const visibleTotals = visible.reduce((totals, row) => ({
+    cash: totals.cash + row.amounts.cash,
+    card: totals.card + row.amounts.card,
+    transfer: totals.transfer + row.amounts.transfer,
+  }), { cash: 0, card: 0, transfer: 0 });
 
   const showModal = (type: typeof modal, movement?: CashMovement) => {
     setAmount(''); setNotes(''); setRetained('0'); setCounts({}); setError(''); setSuccess('');
@@ -162,16 +171,32 @@ export default function CashManagement({ user }: { user: AuthUser }) {
         {selected.closed_at && <div className="mt-5 rounded-lg border border-gray-200 p-4"><h3 className="font-semibold">Arqueo guardado</h3><div className="mt-3 grid gap-3 sm:grid-cols-4">{[['Efectivo contado', selected.counted_cash], ['Diferencia', selected.difference], ['Fondo reservado', selected.retained_cash], ['Efectivo entregado', selected.handed_over]].map(([label, value]) => <div key={String(label)}><p className="text-sm text-gray-500">{label}</p><p className="font-semibold">{money(Number(value))}</p></div>)}</div>{selected.closing_notes && <p className="mt-3 text-sm">Observaciones: {selected.closing_notes}</p>}<p className="mt-2 text-xs text-gray-500">El fondo reservado se carga como apertura de la próxima caja cuando se vuelva a abrir.</p></div>}
       </section>
       <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4"><h2 className="font-semibold">Movimientos ({movements.length})</h2><div className="flex flex-wrap gap-2"><input aria-label="Buscar movimientos" placeholder="Buscar concepto, usuario o referencia" className={inputClass + ' sm:w-72'} value={search} onChange={e => setSearch(e.target.value)} /><select aria-label="Filtrar medio de pago" className={inputClass + ' sm:w-44'} value={method} onChange={e => setMethod(e.target.value)}><option value="all">Todos los medios</option>{Object.entries(cashMethodLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div></div>
-        <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-gray-50 text-gray-600"><tr>{['Fecha / Responsable', 'Tipo / Origen', 'Concepto', 'Medio', 'Ingreso', 'Egreso', ''].map((label, i) => <th key={i} className="px-4 py-3">{label}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">
-          {!visible.length && <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-500">{loading ? 'Cargando movimientos…' : 'Sin movimientos para mostrar.'}</td></tr>}
-          {visible.map(m => <tr key={m.id}><td className="whitespace-nowrap px-4 py-3">{cashDate(m.created_at)}<p className="text-xs text-gray-500">{m.actor_name}</p></td><td className="px-4 py-3">{cashKindLabels[m.kind]}<p className="text-xs text-gray-500">{m.source_type ? cashSourceLabels[m.source_type] : 'Manual'}{reversed.has(m.id) ? ' · anulado' : ''}</p></td><td className="max-w-xs px-4 py-3"><p className="break-words">{m.description}</p>{m.source_id && <p title={m.source_id} className="text-xs text-gray-400">Ref. {m.source_id.slice(0, 8)}</p>}</td><td className="px-4 py-3">{cashMethodLabels[m.method]}</td><td className="whitespace-nowrap px-4 py-3 text-green-700">{m.amount > 0 ? money(Number(m.amount)) : '—'}</td><td className="whitespace-nowrap px-4 py-3 text-red-600">{m.amount < 0 ? money(-Number(m.amount)) : '—'}</td><td className="px-4 py-3">{!selected.closed_at && !selected.deleted_at && can('adjust') && ['manual_in', 'expense', 'withdrawal'].includes(m.kind) && !reversed.has(m.id) && <button disabled={loading || pending} className="text-red-700 hover:underline" onClick={() => showModal('reverse', m)}>Anular</button>}</td></tr>)}
-        </tbody></table></div>
-        <p className="p-4 text-xs text-gray-500">Los cobros se corrigen desde la venta, reserva o pago de origen. Cada corrección deja un movimiento y conserva el historial. El reporte y el CSV incluyen todos los movimientos de la caja.</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4"><h2 className="font-semibold">Movimientos ({movements.length})</h2><div className="flex flex-wrap gap-2"><input aria-label="Buscar movimientos" placeholder="Buscar jugador, cancha o referencia" className={inputClass + ' sm:w-72'} value={search} onChange={e => setSearch(e.target.value)} /><select aria-label="Filtrar medio de pago" className={inputClass + ' sm:w-44'} value={method} onChange={e => setMethod(e.target.value)}><option value="all">Todos los medios</option>{Object.entries(cashMethodLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div></div>
+        <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-gray-50 text-xs text-gray-600"><tr>
+          <th className="w-px whitespace-nowrap px-3 py-3">Fecha / Responsable</th><th className="w-px whitespace-nowrap px-3 py-3">Tipo / Origen</th><th className="px-3 py-3">Concepto</th>
+          {Object.values(cashMethodLabels).map(label => <th key={label} className="w-px whitespace-nowrap px-3 py-3 text-right">{label}</th>)}<th className="w-px whitespace-nowrap px-3 py-3 text-right">Total</th><th className="w-px px-2 py-3"><span className="sr-only">Acciones</span></th>
+        </tr></thead><tbody className="divide-y divide-gray-100">
+          {!visible.length && <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-500">{loading ? 'Cargando movimientos…' : 'Sin movimientos para mostrar.'}</td></tr>}
+          {visible.map(m => <tr key={m.id} className="align-top">
+            <td className="w-px whitespace-nowrap px-3 py-3 text-xs">{cashDate(m.created_at)} <span className="text-gray-500">· {m.actor_name}</span></td>
+            <td className="w-px whitespace-nowrap px-3 py-3 text-xs">{cashKindLabels[m.kind]} <span className="text-gray-500">· {m.source_type ? cashSourceLabels[m.source_type] : 'Manual'}{m.entries.some(entry => reversed.has(entry.id)) ? ' · anulado' : ''}</span></td>
+            <td className="px-3 py-3"><div className="flex items-start gap-2"><p className="min-w-0 break-words">{m.description}</p><button type="button" title="Ver detalle" aria-label={`Ver detalle: ${m.description}`} onClick={() => setDetail(m)} className="shrink-0 rounded-md p-1 text-green-700 hover:bg-green-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-600"><Eye className="h-4 w-4" /></button></div></td>
+            {Object.keys(cashMethodLabels).map(key => { const value = m.amounts[key as keyof typeof m.amounts]; return <td key={key} className={`w-px whitespace-nowrap px-3 py-3 text-right tabular-nums ${value < 0 ? 'text-red-600' : value > 0 ? 'text-green-700' : 'text-gray-400'}`}>{value ? money(value) : '—'}</td>; })}
+            <td className="w-px whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{money(m.entries.reduce((total, entry) => total + Number(entry.amount), 0))}</td>
+            <td className="w-px px-2 py-3">{!selected.closed_at && !selected.deleted_at && can('adjust') && ['manual_in', 'expense', 'withdrawal'].includes(m.kind) && !reversed.has(m.id) && <button disabled={loading || pending} className="text-xs text-red-700 hover:underline" onClick={() => showModal('reverse', m)}>Anular</button>}</td>
+          </tr>)}
+        </tbody><tfoot className="border-t-2 border-gray-200 bg-gray-50 font-semibold">
+          <tr><td colSpan={3} className="px-3 py-4">{method !== 'all' || search ? 'Totales filtrados' : 'Totales'}</td>
+            {Object.keys(cashMethodLabels).map(key => <td key={key} className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{money(visibleTotals[key as keyof typeof visibleTotals])}</td>)}
+            <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{money(visibleTotals.cash + visibleTotals.card + visibleTotals.transfer)}</td><td />
+          </tr>
+        </tfoot></table></div>
+        <p className="p-4 text-xs text-gray-500">Los cobros se corrigen desde la venta, reserva o pago de origen. Cada corrección deja un movimiento y conserva el historial. Los egresos y ajustes negativos se muestran con signo menos en su medio de pago. El reporte y el CSV incluyen todos los movimientos de la caja.</p>
       </section>
       {can('report') && <section className="rounded-xl border border-gray-200 bg-white p-4"><h2 className="mb-3 font-semibold">Auditoría de la caja</h2>{!audit.length && <p className="text-sm text-gray-500">Sin cambios registrados.</p>}<div className="space-y-3">{audit.map(change => <details key={change.id} className="rounded-lg border p-3"><summary className="cursor-pointer text-sm"><strong>{({ open: 'Apertura', close: 'Cierre', edit: 'Modificación', delete: 'Eliminación', reopen: 'Reapertura' } as Record<string, string>)[change.action] ?? change.action}</strong> · {cashDate(change.created_at)} · {change.actor_name}{change.reason ? ` · ${change.reason}` : ''}</summary><div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">{[['Antes', change.before_data], ['Después', change.after_data]].map(([label, value]) => { const state = value as CashSession | null; return <div key={String(label)} className="rounded-lg bg-gray-50 p-3"><p className="font-semibold">{String(label)}</p>{state ? <><p>Estado: {state.deleted_at ? 'Eliminada' : state.closed_at ? 'Cerrada' : 'Abierta'}</p><p>Apertura: {money(Number(state.opening_amount))}</p><p>Efectivo esperado: {state.expected_cash === null ? '—' : money(Number(state.expected_cash))}</p><p>Contado: {state.counted_cash === null ? '—' : money(Number(state.counted_cash))}</p><p>Diferencia: {state.difference === null ? '—' : money(Number(state.difference))}</p><p>Entregado: {state.handed_over === null ? '—' : money(Number(state.handed_over))}</p><p>Observaciones: {state.opening_notes} {state.closing_notes}</p></> : <p>Sin registro anterior</p>}</div>; })}</div></details>)}</div></section>}
     </>}
     {loading && !selected && <p role="status" className="p-6 text-center text-gray-500">Cargando caja…</p>}
+    {detail && <CashMovementDetail row={detail} onClose={() => setDetail(null)} />}
     {modal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><section role="dialog" aria-modal="true" aria-labelledby="cash-dialog-title" className="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
       <div className="mb-4 flex items-center justify-between"><h2 id="cash-dialog-title" className="text-xl font-semibold">{modal === 'open' ? 'Abrir caja' : modal === 'move' ? 'Movimiento de efectivo' : modal === 'close' ? 'Arqueo y cierre de caja' : modal === 'edit' ? 'Modificar caja' : modal === 'delete' ? 'Eliminar caja' : modal === 'reopen' ? 'Reabrir caja' : 'Anular movimiento manual'}</h2><button type="button" aria-label="Cerrar" disabled={pending} onClick={() => setModal(null)}><X className="h-5 w-5" /></button></div>
       <form onSubmit={submit} className="space-y-4">
