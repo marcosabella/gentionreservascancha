@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve, join, relative } from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { createReleaseManifest, MANIFEST_NAME, validateManifest, verifyReleaseDirectory } from './local-app/release-manifest.mjs';
 
 const clients = {
   'padel-center': { project: 'zcixnnzxxkylotbjudhk', site: 'padelcenter', brand: 'PADEL CENTER' },
@@ -86,8 +87,11 @@ function verifyBundle() {
   if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Build is missing player booking notifications');
 }
 if(command==='build') {
-  execFileSync(process.execPath,['node_modules/vite/bin/vite.js','build','--outDir',outputDir],{env:{...process.env,...publicEnvironment()},stdio:'inherit',windowsHide:true});
-  writeFileSync(join(outputDir,'_redirects'),'/* /index.html 200\n');verifyBundle();console.log(JSON.stringify({built:name,project:client.project}));process.exit(0);
+  const publishedAt=new Date().toISOString(),version=`${Date.now()}-${randomUUID().slice(0,8)}`;
+  execFileSync(process.execPath,['node_modules/vite/bin/vite.js','build','--outDir',outputDir],{env:{...process.env,...publicEnvironment(),VITE_APP_VERSION:version},stdio:'inherit',windowsHide:true});
+  writeFileSync(join(outputDir,'_redirects'),'/* /index.html 200\n');verifyBundle();
+  if(name==='padel-center')await createReleaseManifest(outputDir,{version,publishedAt,notes:process.env.RELEASE_NOTES?.split('\n').filter(Boolean)});
+  console.log(JSON.stringify({built:name,project:client.project,version}));process.exit(0);
 }
 
 const configuration=JSON.parse(readFileSync(join(process.env.APPDATA,'netlify/Config/config.json'),'utf8'));
@@ -101,6 +105,7 @@ const sites=await api('/sites?per_page=100');const site=sites.find(site=>site.na
 if(!site)throw Error('Expected existing Netlify site not found');
 if(command==='deploy') {
   verifyBundle();
+  if(name==='padel-center')await verifyReleaseDirectory(outputDir,validateManifest(JSON.parse(readFileSync(join(outputDir,MANIFEST_NAME),'utf8'))));
   const environment=publicEnvironment();
   const envPath=`/accounts/${site.account_id}/env`;const current=await api(`${envPath}?site_id=${site.id}`);
   for(const [key,value] of Object.entries(environment)) {
@@ -109,7 +114,7 @@ if(command==='deploy') {
   }
   const files={},uploads=new Map();
   for(const file of collect(outputDir)){const data=readFileSync(file);const hash=createHash('sha1').update(data).digest('hex');const urlPath='/'+relative(outputDir,file).replaceAll('\\','/');files[urlPath]=hash;uploads.set(hash,{path:urlPath,data});}
-  const deploy=await api(`/sites/${site.id}/deploys`,{method:'POST',body:{files,draft:false,title:`${client.brand} · Notificaciones de reservas y cancelaciones de jugadores`}});
+  const deploy=await api(`/sites/${site.id}/deploys`,{method:'POST',body:{files,draft:false,title:`${client.brand} · Actualizaciones del sistema y acceso local`}});
   for(const hash of deploy.required??[]){const file=uploads.get(hash);if(!file)throw Error('Unknown required file');await api(`/deploys/${deploy.id}/files${file.path}`,{method:'PUT',body:file.data,contentType:'application/octet-stream'});}
   let ready;
   for(let attempt=0;attempt<30;attempt++){ready=await api(`/deploys/${deploy.id}`);if(['ready','error'].includes(ready.state))break;await new Promise(resolve=>setTimeout(resolve,1500));}
@@ -124,4 +129,12 @@ const asset=await fetch(new URL(assetPath,url));const bundle=await asset.text();
 if(!asset.ok || !bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project&&bundle.includes(other.project)) || !bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Published site failed database/feature verification');
 if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Published site is missing player booking notifications');
 const expectedHtml=readFileSync(join(outputDir,'index.html'),'utf8');if(!expectedHtml.includes(assetPath))throw Error('Published asset does not match this build');
-const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,playerCredit:true,bookingNotifications:true,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));
+let localUpdates=false;
+if(name==='padel-center') {
+  const remote=await fetch(new URL(MANIFEST_NAME+'?check='+Date.now(),url),{cache:'no-store'});
+  if(!remote.ok)throw Error('Published local update manifest unavailable');
+  const manifest=validateManifest(await remote.json()),expected=JSON.parse(readFileSync(join(outputDir,MANIFEST_NAME),'utf8'));
+  if(JSON.stringify(manifest)!==JSON.stringify(expected))throw Error('Published local update differs from this release');
+  localUpdates=true;
+}
+const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,playerCredit:true,bookingNotifications:true,localUpdates,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));
