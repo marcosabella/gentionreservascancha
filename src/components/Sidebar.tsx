@@ -8,6 +8,7 @@ import type { LucideIcon } from 'lucide-react';
 import { complexName, complexLogo } from '../config/complex';
 import { hasPermission, tabPermissions } from '../config/permissions';
 import type { UserRole } from '../types';
+import ThemeSwitch from './ThemeSwitch';
 
 interface SidebarProps {
   activeTab: string;
@@ -271,6 +272,7 @@ export default function Sidebar({
         </nav>
 
         <div className={`shrink-0 border-t border-gray-200 ${isExpanded ? 'p-3' : 'p-2'}`}>
+          <ThemeSwitch compact={!isExpanded} className="mb-2 w-full" />
           <button
             type="button"
             onClick={() => {

@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { LogIn, Eye, EyeOff, User, Lock } from 'lucide-react';
 import { complexName, complexLogo } from '../config/complex';
+import ThemeSwitch from './ThemeSwitch';
 
 interface LoginFormProps {
   onLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -51,6 +52,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading, error }) => {
     <div className="login-screen min-h-dvh bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-3">
       <div className="relative shrink-0" style={{ width: layout.width, height: layout.height }}>
       <div ref={cardRef} className="login-card absolute left-0 top-0 origin-top-left bg-white rounded-2xl shadow-2xl p-8" style={{ transform: `scale(${layout.scale})` }}>
+        <div className="mb-4 flex justify-end"><ThemeSwitch /></div>
         {/* Header */}
         <div className="text-center mb-8">
           {complexLogo ? (
