@@ -25,7 +25,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading, error }) => {
       const width = card.offsetWidth;
       const height = card.offsetHeight;
       if (!width || !height) return;
-      const scale = Math.min(0.8, (window.innerWidth - 24) / width, (window.innerHeight - 24) / height);
+      const mobile = window.innerWidth < 768;
+      const scale = mobile
+        ? Math.min(1, (window.innerWidth - 24) / width)
+        : Math.min(0.8, (window.innerWidth - 24) / width, (window.innerHeight - 24) / height);
       setLayout({ width: width * scale, height: height * scale, scale });
     };
     const observer = new ResizeObserver(fitLogin);
