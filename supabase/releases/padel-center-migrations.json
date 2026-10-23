@@ -2,24 +2,24 @@
   "project": "zcixnnzxxkylotbjudhk",
   "applied": [
     {
-      "version": "20261022120000",
-      "name": "cash_movement_details",
+      "version": "20261023120000",
+      "name": "cash_movement_source_name",
       "mode": "applied"
     }
   ],
   "beforeCounts": {
-    "accounts": 130,
-    "bookings": 501,
+    "accounts": 132,
+    "bookings": 505,
     "players": 317,
     "profiles": 54,
     "sales": 279
   },
   "afterCounts": {
-    "accounts": 130,
-    "bookings": 501,
+    "accounts": 132,
+    "bookings": 505,
     "players": 317,
     "profiles": 54,
     "sales": 279
   },
-  "at": "2026-10-22T11:26:42.079Z"
+  "at": "2026-10-23T10:34:32.490Z"
 }

@@ -76,7 +76,7 @@ export default function CashManagement({ user }: { user: AuthUser }) {
   const reversed = new Set(movements.map(m => m.reversal_of).filter(Boolean));
   const history = sessions.filter(s => (showDeleted || !s.deleted_at) && (!from || localDay(s.opened_at) >= from) && (!to || localDay(s.opened_at) <= to));
   const visible = cashMovementRows(movements).filter(m => (method === 'all' || m.entries.some(entry => entry.method === method)) &&
-    `${m.description} ${(m.source_detail ?? []).join(' ')} ${m.actor_name} ${m.source_id ?? ''} ${m.source_type ? cashSourceLabels[m.source_type] : 'Manual'}`.toLocaleLowerCase('es').includes(search.toLocaleLowerCase('es')));
+    `${m.source_name ?? ''} ${m.description} ${(m.source_detail ?? []).join(' ')} ${m.actor_name} ${m.source_id ?? ''} ${m.source_type ? cashSourceLabels[m.source_type] : 'Manual'}`.toLocaleLowerCase('es').includes(search.toLocaleLowerCase('es')));
   const visibleTotals = visible.reduce((totals, row) => ({
     cash: totals.cash + row.amounts.cash,
     card: totals.card + row.amounts.card,
@@ -173,20 +173,21 @@ export default function CashManagement({ user }: { user: AuthUser }) {
       <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 p-4"><h2 className="font-semibold">Movimientos ({movements.length})</h2><div className="flex flex-wrap gap-2"><input aria-label="Buscar movimientos" placeholder="Buscar jugador, cancha o referencia" className={inputClass + ' sm:w-72'} value={search} onChange={e => setSearch(e.target.value)} /><select aria-label="Filtrar medio de pago" className={inputClass + ' sm:w-44'} value={method} onChange={e => setMethod(e.target.value)}><option value="all">Todos los medios</option>{Object.entries(cashMethodLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div></div>
         <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-gray-50 text-xs text-gray-600"><tr>
-          <th className="w-px whitespace-nowrap px-3 py-3">Fecha / Responsable</th><th className="w-px whitespace-nowrap px-3 py-3">Tipo / Origen</th><th className="px-3 py-3">Concepto</th>
+          <th className="w-px whitespace-nowrap px-3 py-3">Fecha / Responsable</th><th className="w-px whitespace-nowrap px-3 py-3">Tipo / Origen</th><th className="px-3 py-3">Jugador / Cliente</th><th className="px-3 py-3">Concepto</th>
           {Object.values(cashMethodLabels).map(label => <th key={label} className="w-px whitespace-nowrap px-3 py-3 text-right">{label}</th>)}<th className="w-px whitespace-nowrap px-3 py-3 text-right">Total</th><th className="w-px px-2 py-3"><span className="sr-only">Acciones</span></th>
         </tr></thead><tbody className="divide-y divide-gray-100">
-          {!visible.length && <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-500">{loading ? 'Cargando movimientos…' : 'Sin movimientos para mostrar.'}</td></tr>}
+          {!visible.length && <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-500">{loading ? 'Cargando movimientos…' : 'Sin movimientos para mostrar.'}</td></tr>}
           {visible.map(m => <tr key={m.id} className="align-top">
             <td className="w-px whitespace-nowrap px-3 py-3 text-xs">{cashDate(m.created_at)} <span className="text-gray-500">· {m.actor_name}</span></td>
             <td className="w-px whitespace-nowrap px-3 py-3 text-xs">{cashKindLabels[m.kind]} <span className="text-gray-500">· {m.source_type ? cashSourceLabels[m.source_type] : 'Manual'}{m.entries.some(entry => reversed.has(entry.id)) ? ' · anulado' : ''}</span></td>
+            <td className="px-3 py-3 break-words">{m.source_name || '—'}</td>
             <td className="px-3 py-3"><div className="flex items-start gap-2"><p className="min-w-0 break-words">{m.description}</p><button type="button" title="Ver detalle" aria-label={`Ver detalle: ${m.description}`} onClick={() => setDetail(m)} className="shrink-0 rounded-md p-1 text-green-700 hover:bg-green-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-600"><Eye className="h-4 w-4" /></button></div></td>
             {Object.keys(cashMethodLabels).map(key => { const value = m.amounts[key as keyof typeof m.amounts]; return <td key={key} className={`w-px whitespace-nowrap px-3 py-3 text-right tabular-nums ${value < 0 ? 'text-red-600' : value > 0 ? 'text-green-700' : 'text-gray-400'}`}>{value ? money(value) : '—'}</td>; })}
             <td className="w-px whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{money(m.entries.reduce((total, entry) => total + Number(entry.amount), 0))}</td>
             <td className="w-px px-2 py-3">{!selected.closed_at && !selected.deleted_at && can('adjust') && ['manual_in', 'expense', 'withdrawal'].includes(m.kind) && !reversed.has(m.id) && <button disabled={loading || pending} className="text-xs text-red-700 hover:underline" onClick={() => showModal('reverse', m)}>Anular</button>}</td>
           </tr>)}
         </tbody><tfoot className="border-t-2 border-gray-200 bg-gray-50 font-semibold">
-          <tr><td colSpan={3} className="px-3 py-4">{method !== 'all' || search ? 'Totales filtrados' : 'Totales'}</td>
+          <tr><td colSpan={4} className="px-3 py-4">{method !== 'all' || search ? 'Totales filtrados' : 'Totales'}</td>
             {Object.keys(cashMethodLabels).map(key => <td key={key} className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{money(visibleTotals[key as keyof typeof visibleTotals])}</td>)}
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{money(visibleTotals.cash + visibleTotals.card + visibleTotals.transfer)}</td><td />
           </tr>

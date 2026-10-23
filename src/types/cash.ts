@@ -37,6 +37,7 @@ export interface CashMovement {
   method: 'cash' | 'card' | 'transfer';
   amount: number;
   description: string;
+  source_name?: string | null;
   source_detail?: string[];
   source_type: 'booking' | 'sale' | 'account' | null;
   source_id: string | null;

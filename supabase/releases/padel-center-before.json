@@ -6,8 +6,8 @@
   "baseline_policies": 4,
   "cash": "cash_sessions",
   "counts": {
-    "accounts": 130,
-    "bookings": 501,
+    "accounts": 132,
+    "bookings": 505,
     "players": 317,
     "profiles": 54,
     "sales": 279
@@ -178,5 +178,5 @@
       "version": "20261022120000"
     }
   ],
-  "at": "2026-10-22T11:46:42.366Z"
+  "at": "2026-10-23T10:34:19.864Z"
 }

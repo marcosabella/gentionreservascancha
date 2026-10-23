@@ -34,6 +34,14 @@ assert(footer.includes('37.500,00'), 'Grand total excludes opening fund');
 assert.equal((report.match(/Jugador de prueba/g) ?? []).length, 1, 'Origin detail printed once per receipt');
 assert(utils.cashReportHtml(session, []).includes('Sin movimientos.'));
 assert(report.includes('<th>Jugador</th><th>Medio de pago</th>'));
+const named = { ...movement, source_name: 'Organizador <Centro>' };
+const namedReport = utils.cashReportHtml(session, [named]);
+assert(namedReport.includes('<th>Jugador / Cliente</th><th>Concepto</th>'));
+assert(namedReport.includes('<td>Organizador &lt;Centro&gt;</td>'));
+assert(utils.cashCsv(session, [named]).includes('Organizador <Centro>'));
+const sale = { ...movement, source_type: 'sale', source_name: 'Cliente de venta' };
+assert(utils.cashReportHtml(session, [sale]).includes('<td>Cliente de venta</td>'));
+assert(utils.cashCsv(session, [sale]).includes('Cliente de venta'));
 const splitReport = utils.cashReportHtml(session, [{ ...movement, source_detail: [
   'Detalle recuperado del origen actual (no histórico)',
   'Cancha Central · 21/10/2026 · 18:00 a 19:30',

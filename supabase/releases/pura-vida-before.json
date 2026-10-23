@@ -72,7 +72,11 @@
     {
       "name": "secure_user_profiles",
       "version": "20261019200000"
+    },
+    {
+      "name": "cash_movement_details",
+      "version": "20261022120000"
     }
   ],
-  "at": "2026-10-22T11:47:16.438Z"
+  "at": "2026-10-23T10:34:49.398Z"
 }
