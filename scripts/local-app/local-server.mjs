@@ -54,7 +54,9 @@ export async function startLocalServer({ root, port = 8080, startupUpdate = true
       if (!release) { response.writeHead(404).end(); return; }
       response.writeHead(200, { 'Content-Type': types[extname(filePath)] || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Local-App-Version': release.manifest.version });
       if (request.method === 'HEAD') { response.end(); return; }
-      createReadStream(join(release.directory, filePath.slice(1))).on('error', () => response.destroy()).pipe(response);
+      const stream = createReadStream(join(release.directory, filePath.slice(1)));
+      response.once('close', () => stream.destroy());
+      stream.on('error', () => response.destroy()).pipe(response);
     } catch {
       if (!response.headersSent) json(response, 400, { error: 'No se pudo procesar la solicitud.' });
       else response.destroy();

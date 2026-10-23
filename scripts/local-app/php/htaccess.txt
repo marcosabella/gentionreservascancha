@@ -1,0 +1,6 @@
+Options -Indexes
+DirectoryIndex index.php
+RewriteEngine On
+RewriteRule ^(?:\.local-updates|runtime|app)(?:/|$) - [F,L,NC]
+RewriteRule ^index\.php$ - [L]
+RewriteRule ^ index.php [QSA,L]

@@ -3,6 +3,11 @@ import { execFileSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
 import { MANIFEST_NAME, validateManifest, verifyReleaseDirectory } from './local-app/release-manifest.mjs';
 
+if (!process.argv.includes('--node')) {
+  await import('./package-xampp-build.mjs');
+  process.exit(0);
+}
+
 const source = resolve('dist/padel-center');
 const manifest = validateManifest(JSON.parse(readFileSync(join(source, MANIFEST_NAME), 'utf8')));
 await verifyReleaseDirectory(source, manifest);

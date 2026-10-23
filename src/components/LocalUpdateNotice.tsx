@@ -16,6 +16,9 @@ interface LocalStatus {
 const appVersion = import.meta.env.VITE_APP_VERSION as string | undefined;
 const isLocal = () => ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const storageKey = 'padel-center:last-update-notice';
+const updateEndpoint = (action: string) => new URL(`__local-update/${action}`, new URL(
+  document.querySelector<HTMLMetaElement>('meta[name="local-update-base"]')?.content ?? './', document.baseURI,
+)).href;
 function isLocalStatus(value: unknown): value is LocalStatus {
   if (!value || typeof value !== 'object') return false;
   const data = value as Partial<LocalStatus>;
@@ -49,14 +52,14 @@ export default function LocalUpdateNotice() {
       if (inFlight) return;
       inFlight = true;
       try {
-        const response = await fetch('/__local-update/status', { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+        const response = await fetch(updateEndpoint('status'), { cache: 'no-store', signal: AbortSignal.timeout(10000) });
         if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) return;
         const initial: unknown = await response.json();
         if (!isLocalStatus(initial)) return;
         let value = initial;
         if (!disposed) setStatus(value);
         if (check) {
-          const result = await fetch('/__local-update/check', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Local-Update-Token': value.token }, body: '{}', signal: AbortSignal.timeout(40000) });
+          const result = await fetch(updateEndpoint('check'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Local-Update-Token': value.token }, body: '{}', signal: AbortSignal.timeout(40000) });
           if (result.ok) {
             const checked: unknown = await result.json();
             if (isLocalStatus(checked)) { value = checked; if (!disposed) setStatus(value); }
@@ -88,7 +91,7 @@ export default function LocalUpdateNotice() {
     if (!status.latest || busy) return;
     setBusy(true); setError(null);
     try {
-      const response = await fetch('/__local-update/apply', {
+      const response = await fetch(updateEndpoint('apply'), {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Local-Update-Token': status.token },
         body: JSON.stringify({ version: status.latest.version }), signal: AbortSignal.timeout(45000),
       });
