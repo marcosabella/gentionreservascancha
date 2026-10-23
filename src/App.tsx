@@ -1552,7 +1552,7 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 transition-[margin] duration-200 lg:ml-64 lg:peer-data-[expanded=false]/sidebar:ml-16">
+      <div className="min-w-0 flex-1 transition-[margin] duration-200 lg:ml-64 lg:peer-data-[expanded=false]/sidebar:ml-16">
         <div className="p-6 pt-20 lg:pt-6">
           {isPlayer() && <InstallPlayerApp />}
           {isAdmin() && user && <div className="mb-4 flex justify-end"><BookingNotifications key={user.id} userId={user.id} /></div>}

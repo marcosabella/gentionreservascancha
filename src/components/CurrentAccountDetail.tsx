@@ -47,7 +47,7 @@ const CurrentAccountDetail: React.FC<CurrentAccountDetailProps> = ({ account, on
     .reduce((sum, e) => sum + e.amount, 0);
 
   const content = (
-    <div className="p-6">
+    <div className={movements ? 'min-w-0 p-3 [overflow-wrap:anywhere] sm:p-4 md:p-6' : 'p-6'}>
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Cuenta Corriente</h2>

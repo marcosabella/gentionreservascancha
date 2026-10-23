@@ -24,7 +24,32 @@ export default function PlayerMovementHistory({ movements }: { movements: Player
 
   return <>
     <p className="mb-3 text-sm text-gray-500">Tocá un movimiento para ver su detalle. Los pagos al contado figuran en el Haber; el saldo corresponde a tu cuenta corriente.</p>
-    <div className="overflow-x-auto rounded-lg border border-gray-200">
+    <div className="min-w-0 rounded-lg border border-gray-200 md:hidden">
+      <div className="grid grid-cols-3 gap-2 rounded-t-lg bg-gray-100 px-3 py-2 text-right text-xs font-semibold text-gray-700">
+        <span>Debe</span><span>Haber</span><span>Saldo</span>
+      </div>
+      <div className="divide-y divide-gray-200">
+        {movements.map(movement => <button key={movement.id} type="button" onClick={() => setSelected(movement)}
+          aria-label={`Ver detalle: ${movement.title}, ${shortDate(movement.date)}`}
+          aria-describedby={`player-movement-amounts-${movement.id}`}
+          className="block w-full min-w-0 px-3 py-3 text-left hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-600">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{movement.title}</span>
+            <span className="shrink-0 text-xs text-gray-500">{shortDate(movement.date)}</span>
+            <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" />
+          </span>
+          <span id={`player-movement-amounts-${movement.id}`} className="mt-2 grid min-w-0 grid-cols-3 gap-2 text-right text-xs tabular-nums [&>span]:min-w-0 [&>span]:[overflow-wrap:anywhere]">
+            <span className="text-red-600"><span className="sr-only">Debe: </span>{movement.debit ? formatCurrency(movement.debit) : '—'}</span>
+            <span className="text-green-700"><span className="sr-only">Haber: </span>{movement.paid ? formatCurrency(movement.paid) : '—'}</span>
+            <span className={`font-semibold ${movement.balance < 0 ? 'text-red-600' : movement.balance > 0 ? 'text-green-700' : 'text-gray-600'}`}>
+              <span className="sr-only">Saldo: </span>{formatCurrency(Math.abs(movement.balance))}
+              <span className="mt-0.5 block text-xs font-normal text-gray-500">{movement.balance < 0 ? 'Debe' : movement.balance > 0 ? 'A favor' : 'Sin saldo'}</span>
+            </span>
+          </span>
+        </button>)}
+      </div>
+    </div>
+    <div className="hidden overflow-x-auto rounded-lg border border-gray-200 md:block">
       <table className="w-full text-xs md:text-sm">
         <thead className="bg-gray-100 text-left text-gray-700">
           <tr>
@@ -59,11 +84,11 @@ export default function PlayerMovementHistory({ movements }: { movements: Player
     <dialog ref={dialog} onCancel={closeDetail} onClose={() => setSelected(null)} aria-labelledby="player-movement-title" className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl bg-white p-5 shadow-xl backdrop:bg-black/50">
       {selected && <>
         <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0 [overflow-wrap:anywhere]">
             <h3 id="player-movement-title" className="text-lg font-semibold text-gray-900">{selected.title}</h3>
             <p className="mt-1 text-sm text-gray-500">{formatDate(selected.date)} · {selected.time.slice(0, 5)}</p>
           </div>
-          <button type="button" onClick={closeDetail} aria-label="Cerrar detalle" className="rounded p-2 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={closeDetail} aria-label="Cerrar detalle" className="shrink-0 rounded p-2 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button>
         </div>
         <div className="space-y-4 text-sm text-gray-700">
           {selected.items.length > 0 && <div className="space-y-2">{selected.items.map((item, i) => <div key={i} className="flex justify-between gap-3"><span>{item.name}</span><span className="shrink-0">{formatCurrency(item.amount)}</span></div>)}</div>}
