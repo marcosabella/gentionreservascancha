@@ -90,6 +90,7 @@ if(command==='build') {
   const publishedAt=new Date().toISOString(),version=`${Date.now()}-${randomUUID().slice(0,8)}`;
   execFileSync(process.execPath,['node_modules/vite/bin/vite.js','build','--outDir',outputDir],{env:{...process.env,...publicEnvironment(),VITE_APP_VERSION:version},stdio:'inherit',windowsHide:true});
   writeFileSync(join(outputDir,'_redirects'),'/* /index.html 200\n');verifyBundle();
+  writeFileSync(join(outputDir,'_headers'),'/sw.js\n  Cache-Control: no-store\n  Content-Type: text/javascript; charset=utf-8\n/manifest.json\n  Cache-Control: no-cache\n  Content-Type: application/manifest+json\n');
   if(name==='padel-center')await createReleaseManifest(outputDir,{version,publishedAt,notes:process.env.RELEASE_NOTES?.split('\n').filter(Boolean)});
   console.log(JSON.stringify({built:name,project:client.project,version}));process.exit(0);
 }
@@ -129,6 +130,14 @@ const asset=await fetch(new URL(assetPath,url));const bundle=await asset.text();
 if(!asset.ok || !bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project&&bundle.includes(other.project)) || !bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Published site failed database/feature verification');
 if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Published site is missing player booking notifications');
 const expectedHtml=readFileSync(join(outputDir,'index.html'),'utf8');if(!expectedHtml.includes(assetPath))throw Error('Published asset does not match this build');
+if(!html.includes('rel="manifest"') || !bundle.includes('Instalar app'))throw Error('Published player app installation is missing');
+const appManifestResponse=await fetch(new URL('manifest.json?check='+Date.now(),url));
+if(!appManifestResponse.ok)throw Error('Published web app manifest is unavailable');
+const appManifest=await appManifestResponse.json();
+const expectedAppManifest=JSON.parse(readFileSync(join(outputDir,'manifest.json'),'utf8'));
+if(JSON.stringify(appManifest)!==JSON.stringify(expectedAppManifest))throw Error('Published web app manifest belongs to another build');
+const workerResponse=await fetch(new URL('sw.js?check='+Date.now(),url));
+if(!workerResponse.ok || await workerResponse.text()!==readFileSync(join(outputDir,'sw.js'),'utf8'))throw Error('Published install worker differs from this build');
 let localUpdates=false;
 if(name==='padel-center') {
   const remote=await fetch(new URL(MANIFEST_NAME+'?check='+Date.now(),url),{cache:'no-store'});
@@ -137,4 +146,4 @@ if(name==='padel-center') {
   if(JSON.stringify(manifest)!==JSON.stringify(expected))throw Error('Published local update differs from this release');
   localUpdates=true;
 }
-const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,playerCredit:true,bookingNotifications:true,localUpdates,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));
+const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,playerCredit:true,bookingNotifications:true,playerAppInstall:true,localUpdates,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));
