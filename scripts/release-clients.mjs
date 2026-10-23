@@ -41,6 +41,11 @@ if (command==='migrate') {
   if(state.invalid_credits || state.unmatched_profiles || state.baseline_columns!==6 || !state.login_trigger || !state.availability_index || state.baseline_policies!==4) throw Error('Existing schema/data needs review before migration.');
   const recorded=new Set(state.migrations.map(m=>m.version));
   const files=readdirSync('supabase/migrations').filter(file=>/^\d+_.+\.sql$/.test(file)).sort();
+  if(new Set(files.map(file=>file.slice(0,14))).size!==files.length)throw Error('Duplicate local migration versions');
+  for(const file of files) {
+    const existing=state.migrations.find(item=>item.version===file.slice(0,14));
+    if(existing && existing.name!==file.slice(15,-4))throw Error(`Migration version already belongs to another change: ${file}`);
+  }
   const pending=files.filter(file=>file.slice(0,14)>='20261019120000' && !recorded.has(file.slice(0,14)));
   if(state.cash && pending.includes('20261019160000_cash_management.sql')) throw Error('Cash schema already exists without migration history; refusing to overwrite.');
   save('before',state);
@@ -78,6 +83,7 @@ function verifyBundle() {
   const bundle=collect(outputDir).filter(file=>file.endsWith('.js')).map(file=>readFileSync(file,'utf8')).join('\n');
   if(!bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project && bundle.includes(other.project)) || /127\.0\.0\.1:560|localhost:560/.test(bundle)) throw Error('Build has an incorrect database/function endpoint');
   if(!bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Build is missing the latest features');
+  if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Build is missing player booking notifications');
 }
 if(command==='build') {
   execFileSync(process.execPath,['node_modules/vite/bin/vite.js','build','--outDir',outputDir],{env:{...process.env,...publicEnvironment()},stdio:'inherit',windowsHide:true});
@@ -103,7 +109,7 @@ if(command==='deploy') {
   }
   const files={},uploads=new Map();
   for(const file of collect(outputDir)){const data=readFileSync(file);const hash=createHash('sha1').update(data).digest('hex');const urlPath='/'+relative(outputDir,file).replaceAll('\\','/');files[urlPath]=hash;uploads.set(hash,{path:urlPath,data});}
-  const deploy=await api(`/sites/${site.id}/deploys`,{method:'POST',body:{files,draft:false,title:`${client.brand} · Caja, empleados y cuenta corriente por jugador`}});
+  const deploy=await api(`/sites/${site.id}/deploys`,{method:'POST',body:{files,draft:false,title:`${client.brand} · Notificaciones de reservas y cancelaciones de jugadores`}});
   for(const hash of deploy.required??[]){const file=uploads.get(hash);if(!file)throw Error('Unknown required file');await api(`/deploys/${deploy.id}/files${file.path}`,{method:'PUT',body:file.data,contentType:'application/octet-stream'});}
   let ready;
   for(let attempt=0;attempt<30;attempt++){ready=await api(`/deploys/${deploy.id}`);if(['ready','error'].includes(ready.state))break;await new Promise(resolve=>setTimeout(resolve,1500));}
@@ -116,5 +122,6 @@ const response=await fetch(url+'/?release='+Date.now(),{cache:'no-store'});const
 if(!response.ok || !assetPath)throw Error('Published HTML unavailable');
 const asset=await fetch(new URL(assetPath,url));const bundle=await asset.text();
 if(!asset.ok || !bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project&&bundle.includes(other.project)) || !bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Published site failed database/feature verification');
+if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Published site is missing player booking notifications');
 const expectedHtml=readFileSync(join(outputDir,'index.html'),'utf8');if(!expectedHtml.includes(assetPath))throw Error('Published asset does not match this build');
-const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,playerCredit:true,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));
+const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,playerCredit:true,bookingNotifications:true,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));

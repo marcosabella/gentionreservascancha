@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import BookingCalendar from './components/BookingCalendar';
 import BookingForm from './components/BookingForm';
 import BookingList from './components/BookingList';
+import BookingNotifications from './components/BookingNotifications';
 import BookingEditForm from './components/BookingEditForm';
 import TurnCloseForm from './components/TurnCloseForm';
 import CourtList from './components/CourtList';
@@ -1552,6 +1553,7 @@ function App() {
       {/* Main Content */}
       <div className="flex-1 transition-[margin] duration-200 lg:ml-64 lg:peer-data-[expanded=false]/sidebar:ml-16">
         <div className="p-6 pt-20 lg:pt-6">
+          {isAdmin() && user && <div className="mb-4 flex justify-end"><BookingNotifications key={user.id} userId={user.id} /></div>}
           {activeTab === 'no-access' && <div className="rounded-xl border border-gray-200 bg-white p-6"><h2 className="text-xl font-semibold">Sin módulos habilitados</h2><p className="mt-2 text-gray-600">Solicitá al administrador que configure los permisos de tu usuario.</p></div>}
           {/* Dashboard */}
           {activeTab === 'dashboard' && allowEmployee('dashboard.view') && (

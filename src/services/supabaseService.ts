@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { bookingFromRow } from '../utils/bookingRow';
 
 // Employees use atomic RPCs for operations that also modify related records.
 // The server checks current permissions from the database on every operation.
@@ -389,9 +390,25 @@ export const consumablesService = {
 
 // Bookings
 export const bookingsService = {
+  async getById(id: string): Promise<Booking | null> {
+    const { data, error } = await supabase.from('bookings')
+      .select('*, booking_players(*), booking_consumptions(*)').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data ? bookingFromRow(data) : null;
+  },
+
   async create(booking: Omit<Booking, 'id' | 'createdAt'>) {
     const employeeResult = await employeeMutation('bookings', 'create', null, booking);
     if (employeeResult) return employeeResult.id;
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data: profile, error: profileError } = await supabase.from('user_profiles')
+      .select('role').eq('id', session?.user.id).maybeSingle();
+    if (profileError) throw profileError;
+    if (profile?.role === 'player') {
+      const { data, error } = await supabase.rpc('player_create_booking', { payload: booking });
+      if (error) throw error;
+      return data as string;
+    }
     const { data: bookingData, error: bookingError } = await supabase
       .from('bookings')
       .insert({
