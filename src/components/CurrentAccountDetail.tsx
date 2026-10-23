@@ -1,17 +1,23 @@
-import { ActionButton } from '../config/AccessContext';
-import React from 'react';
-import { X, Calendar, Clock, TrendingDown, TrendingUp, CreditCard, FileText, Trash2 } from 'lucide-react';
+import { AccessContext, ActionButton } from '../config/AccessContext';
+import { hasPermission } from '../config/permissions';
+import React, { useContext } from 'react';
+import { X, Calendar, TrendingDown, TrendingUp, CreditCard, FileText, Trash2 } from 'lucide-react';
 import { PlayerCurrentAccount, CurrentAccountEntry } from '../types';
 import { formatCurrency, formatDate } from '../utils/timeSlots';
+import type { PlayerMovement } from '../utils/playerMovements';
+import PlayerMovementHistory from './PlayerMovementHistory';
 
 interface CurrentAccountDetailProps {
   account: PlayerCurrentAccount;
-  onDeleteEntry: (entryId: string) => void;
+  onDeleteEntry?: (entryId: string) => void;
   onClose: () => void;
   isModal?: boolean;
+  movements?: PlayerMovement[];
 }
 
-const CurrentAccountDetail: React.FC<CurrentAccountDetailProps> = ({ account, onDeleteEntry, onClose, isModal = true }) => {
+const CurrentAccountDetail: React.FC<CurrentAccountDetailProps> = ({ account, onDeleteEntry, onClose, isModal = true, movements }) => {
+  const user = useContext(AccessContext);
+  const canDelete = !!onDeleteEntry && !!user && user.role !== 'player' && hasPermission(user, 'accounts.delete');
   const getEntryIcon = (entry: CurrentAccountEntry) => {
     if (entry.type === 'debit') return <TrendingDown className="w-4 h-4 text-red-500" />;
     return <TrendingUp className="w-4 h-4 text-green-500" />;
@@ -100,9 +106,9 @@ const CurrentAccountDetail: React.FC<CurrentAccountDetailProps> = ({ account, on
                 <FileText className="w-5 h-5 text-blue-600" />
                 <span className="text-sm font-medium text-blue-700">Movimientos</span>
               </div>
-              <p className="text-xl font-bold text-blue-600">{account.entries.length}</p>
+              <p className="text-xl font-bold text-blue-600">{movements?.length ?? account.entries.length}</p>
               <p className="text-xs text-blue-500">
-                {account.lastMovement ? `Último: ${formatDate(account.lastMovement)}` : 'Sin movimientos'}
+                {(movements ? movements[0]?.date : account.lastMovement) ? `Último: ${formatDate((movements ? movements[0]?.date : account.lastMovement)!)}` : 'Sin movimientos'}
               </p>
             </div>
           </div>
@@ -111,7 +117,7 @@ const CurrentAccountDetail: React.FC<CurrentAccountDetailProps> = ({ account, on
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Historial de Movimientos</h3>
             
-            {account.entries.length === 0 ? (
+            {movements ? <PlayerMovementHistory movements={movements} /> : account.entries.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                 <p>No hay movimientos registrados</p>
@@ -126,7 +132,7 @@ const CurrentAccountDetail: React.FC<CurrentAccountDetailProps> = ({ account, on
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Tipo</th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Monto</th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Saldo</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Acciones</th>
+                      {canDelete && <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Acciones</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -176,15 +182,15 @@ const CurrentAccountDetail: React.FC<CurrentAccountDetailProps> = ({ account, on
                                 {runningBalance < 0 ? 'Debe' : runningBalance > 0 ? 'A favor' : 'Sin saldo'}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            {canDelete && <td className="px-4 py-3 text-center">
                               <ActionButton permission="accounts.delete"
-                                onClick={() => onDeleteEntry(entry.id)}
+                                onClick={() => onDeleteEntry?.(entry.id)}
                                 className="inline-flex items-center px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                                 title="Eliminar movimiento"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </ActionButton>
-                            </td>
+                            </td>}
                           </tr>
                         );
                       });

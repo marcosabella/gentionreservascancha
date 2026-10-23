@@ -48,6 +48,7 @@ import {
 
 import { generateRecurringBookings } from './utils/recurringBookings';
 import { getPlayerCurrentAccount } from './utils/currentAccounts';
+import { getPlayerMovements } from './utils/playerMovements';
 import { useSupabaseData } from './hooks/useSupabaseData';
 import { useAuth } from './hooks/useAuth';
 import { isSupabaseConfigured } from './lib/supabase';
@@ -1445,7 +1446,7 @@ function App() {
   };
 
   const handleCurrentAccountEntryDelete = async (entryId: string) => {
-    if (!allowEmployee('accounts.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
+    if (!isStaff() || !can('accounts.delete')) { alert('No tenés permiso para realizar esta acción'); return; }
     if (!confirm('¿Estás seguro de que quieres eliminar este movimiento?')) return;
     
     // Find the entry to check if it has related sales
@@ -1731,7 +1732,7 @@ function App() {
                       currentPlayerProfile.name,
                       filteredCurrentAccountEntries
                     )}
-                    onDeleteEntry={() => {}} // Players can't delete entries
+                    movements={getPlayerMovements(currentPlayerProfile.id, filteredBookings, filteredSales, filteredCurrentAccountEntries)}
                     onClose={() => {}}
                     isModal={false}
                   />

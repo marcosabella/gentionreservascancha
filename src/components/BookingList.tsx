@@ -1,6 +1,6 @@
 import { ActionButton } from '../config/AccessContext';
 import React, { useMemo, useState } from 'react';
-import { Calendar, Clock, User, Phone, Mail, Trash2, Filter, Users, ShoppingCart, Edit, CheckCircle, Settings, Eye, Search, MapPin } from 'lucide-react';
+import { Calendar, Clock, User, Trash2, Filter, Users, CheckCircle, Settings, Eye, Search, MapPin, ChevronRight } from 'lucide-react';
 import { Booking, AuthUser } from '../types';
 import { formatCurrency, formatDate } from '../utils/timeSlots';
 import { getArgentinaDateString } from '../utils/date';
@@ -210,7 +210,21 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
     showConfirmDialog({
       title: 'Detalles de la Reserva',
       message: '',
-      content: <BookingDetailContent booking={booking} getStatusText={getStatusText} />,
+      content: <>
+        <BookingDetailContent booking={booking} getStatusText={getStatusText} />
+        {user?.role === 'player' && canCancelBooking(booking) && (
+          <div className="mt-4 border-t border-blue-200 pt-4">
+            <ActionButton permission="bookings.cancel"
+              type="button"
+              onClick={() => handleCancelBooking(booking.id)}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Cancelar reserva
+            </ActionButton>
+          </div>
+        )}
+      </>,
       type: 'info',
       confirmText: 'Cerrar',
       cancelText: '',
@@ -221,7 +235,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -309,12 +323,12 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
         </div>
 
         {/* Status Filter */}
-        <div className="flex items-center space-x-2">
+        <div className="flex min-w-0 items-center space-x-2">
           <Filter className="w-5 h-5 text-gray-500" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+            className="min-w-0 flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
           >
             <option value="today">Hoy</option>
             <option value="all">Todas</option>
@@ -324,12 +338,12 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
         </div>
 
         {/* Court Filter */}
-        <div className="flex items-center space-x-2">
+        <div className="flex min-w-0 items-center space-x-2">
           <MapPin className="w-5 h-5 text-gray-500" />
           <select
             value={courtFilter}
             onChange={(e) => setCourtFilter(e.target.value)}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+            className="min-w-0 flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
           >
             <option value="">Todas las canchas</option>
             {uniqueCourts.map(court => (
@@ -368,7 +382,31 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <>
+        {user?.role === 'player' && (
+          <div className="min-w-0 space-y-3 md:hidden">
+            {filteredBookings.map(booking => (
+              <div key={booking.id} className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => showBookingDetails(booking)}
+                  aria-label={`Ver detalles de ${booking.courtName}, ${formatDate(booking.date)}, ${booking.startTime.slice(0, 5)}`}
+                  className="flex min-h-14 w-full min-w-0 items-center gap-3 p-3 text-left transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                >
+                  <Calendar className="h-5 w-5 shrink-0 text-blue-600" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-gray-900">{booking.courtName}</span>
+                    <span className="block text-xs text-gray-500">{booking.date.split('-').reverse().join('/')} · {booking.startTime.slice(0, 5)} a {booking.endTime.slice(0, 5)}</span>
+                    {booking.isRecurring && <span className="block text-xs font-medium text-blue-600">Turno fijo</span>}
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${getStatusColor(booking.status)}`}>{getStatusText(booking.status)}</span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className={`${user?.role === 'player' ? 'hidden md:block ' : ''}min-w-0 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden`}>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -502,6 +540,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, user, onBookingCanc
             </table>
           </div>
         </div>
+        </>
       )}
 
       <ConfirmDialog
