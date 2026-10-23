@@ -176,7 +176,11 @@
     {
       "name": "cash_movement_details",
       "version": "20261022120000"
+    },
+    {
+      "name": "cash_movement_source_name",
+      "version": "20261023120000"
     }
   ],
-  "at": "2026-10-23T10:34:19.864Z"
+  "at": "2026-10-23T12:02:21.589Z"
 }
