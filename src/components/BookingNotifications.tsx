@@ -6,6 +6,7 @@ import { useBookingNotifications } from '../hooks/useBookingNotifications';
 import { bookingsService } from '../services/supabaseService';
 import { formatDate } from '../utils/timeSlots';
 import BookingDetailContent from './BookingDetailContent';
+import { bookingNotificationsService } from '../services/bookingNotificationsService';
 
 const statusLabels: Record<Booking['status'], string> = {
   confirmed: 'Confirmada', pending: 'Pendiente', 'in-progress': 'En progreso', completed: 'Completada', cancelled: 'Cancelada',
@@ -16,12 +17,44 @@ const eventDate = (value: string) => new Date(value).toLocaleString('es-AR', {
 
 export default function BookingNotifications({ userId }: { userId: string }) {
   const feed = useBookingNotifications(userId);
+  const refreshNotifications = feed.refresh;
   const dialog = useRef<HTMLDialogElement>(null);
   const [selected, setSelected] = useState<BookingNotification | null>(null);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const [dismissedNotices, setDismissedNotices] = useState<Set<string>>(() => new Set());
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const pendingNotices = feed.recentItems.filter(item => !item.is_read && !dismissedNotices.has(item.id));
+  const notice = pendingNotices[0];
+
+  useEffect(() => {
+    let disposed = false;
+    const openPush = async (id: string) => {
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+      try {
+        const notification = await bookingNotificationsService.getById(id);
+        if (disposed) return;
+        if (!notification) { setLinkError('Este aviso ya no está disponible.'); dialog.current?.showModal(); return; }
+        setSelected(notification);
+        if (!dialog.current?.open) dialog.current?.showModal();
+        setLinkError(null);
+        const url = new URL(window.location.href);
+        url.searchParams.delete('bookingNotice');
+        window.history.replaceState(window.history.state, '', url);
+        await bookingNotificationsService.markRead(notification.id);
+        if (!disposed) await refreshNotifications();
+      } catch { if (!disposed) setLinkError('No se pudo abrir el aviso. Volvé a intentar desde la campana.'); }
+    };
+    const id = new URL(window.location.href).searchParams.get('bookingNotice');
+    if (id) void openPush(id);
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OPEN_BOOKING_NOTIFICATION' && typeof event.data.id === 'string') void openPush(event.data.id);
+    };
+    navigator.serviceWorker?.addEventListener('message', onMessage);
+    return () => { disposed = true; navigator.serviceWorker?.removeEventListener('message', onMessage); };
+  }, [userId, refreshNotifications]);
 
   useEffect(() => {
     let disposed = false;
@@ -43,6 +76,29 @@ export default function BookingNotifications({ userId }: { userId: string }) {
   };
 
   return <>
+    {notice && <aside role="status" aria-live="polite" aria-label="Aviso de reserva de un jugador"
+      className="fixed left-4 right-4 top-4 z-[70] rounded-xl border border-green-200 bg-white p-4 text-left shadow-xl sm:left-auto sm:w-96">
+      <div className="flex items-start gap-3">
+        {notice.kind === 'created'
+          ? <CalendarPlus className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+          : <CalendarX className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />}
+        <div className="min-w-0 flex-1 text-sm">
+          <p className="font-semibold text-gray-900">{notice.kind === 'created' ? 'Nueva reserva de un jugador' : 'Un jugador canceló su reserva'}</p>
+          <p className="mt-1 break-words text-gray-600">{notice.player_name} · {notice.court_name}</p>
+          <p className="mt-1 text-gray-600">{notice.booking_date.split('-').reverse().join('/')} · {notice.start_time.slice(0, 5)} a {notice.end_time.slice(0, 5)}</p>
+          {pendingNotices.length > 1 && <p className="mt-1 text-gray-600">Hay más avisos de reservas pendientes.</p>}
+          <button type="button" onClick={() => {
+            setDismissedNotices(previous => new Set([...previous, notice.id]));
+            openNotification(notice);
+            dialog.current?.showModal();
+          }} className="mt-3 min-h-10 rounded-lg bg-green-600 px-3 py-2 font-medium text-white hover:bg-green-700">Ver detalle</button>
+        </div>
+        <button type="button" aria-label="Cerrar aviso de reserva" onClick={() => {
+          setDismissedNotices(previous => new Set([...previous, ...pendingNotices.map(item => item.id)]));
+        }} className="rounded p-1 text-gray-400 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+      </div>
+    </aside>}
+    <div className="flex flex-wrap items-start justify-end gap-2">
     <button type="button" onClick={() => { dialog.current?.showModal(); void feed.refresh(); }}
       aria-label={`Notificaciones de reservas${feed.unreadCount ? `: ${feed.unreadCount} sin leer` : ''}`}
       aria-haspopup="dialog" className="relative inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-green-600">
@@ -51,6 +107,8 @@ export default function BookingNotifications({ userId }: { userId: string }) {
       {feed.unreadCount > 0 && <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">{feed.unreadCount > 99 ? '99+' : feed.unreadCount}</span>}
       {feed.error && <span className="h-2 w-2 rounded-full bg-amber-500" aria-label="No se pudieron actualizar" />}
     </button>
+    </div>
+    {linkError && <p role="alert" className="text-sm text-red-700">{linkError}</p>}
 
     <dialog ref={dialog} onClose={() => setSelected(null)} aria-labelledby="booking-notifications-title"
       className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-xl bg-white p-4 text-gray-900 shadow-2xl backdrop:bg-black/50 sm:p-6">

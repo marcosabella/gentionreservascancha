@@ -5,6 +5,7 @@ import type { BookingNotification, NotificationCursor } from '../services/bookin
 
 export function useBookingNotifications(userId: string) {
   const [items, setItems] = useState<BookingNotification[]>([]);
+  const [recentItems, setRecentItems] = useState<BookingNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [cursor, setCursor] = useState<NotificationCursor | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -16,9 +17,14 @@ export function useBookingNotifications(userId: string) {
     const current = ++request.current;
     setLoading(true);
     try {
-      const result = await bookingNotificationsService.list(cursor);
+      // Keep incoming notices visible even while browsing older notifications.
+      const [result, recent] = await Promise.all([
+        bookingNotificationsService.list(cursor),
+        cursor ? bookingNotificationsService.list() : Promise.resolve(null),
+      ]);
       if (current !== request.current) return;
       setItems(result.items);
+      setRecentItems((recent ?? result).items);
       setUnreadCount(result.unreadCount);
       setHasMore(result.hasMore);
       setError(null);
@@ -62,7 +68,7 @@ export function useBookingNotifications(userId: string) {
     }
   };
 
-  return { items, unreadCount, hasMore, loading, error, refresh, markRead, cursor,
+  return { items, recentItems, unreadCount, hasMore, loading, error, refresh, markRead, cursor,
     showRecent: () => setCursor(null),
     showOlder: () => { if (items.length) setCursor(items[items.length - 1]); },
   };

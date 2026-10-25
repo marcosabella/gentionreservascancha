@@ -16,6 +16,39 @@ export function pwaWorker(brand) {
   return `// Navigation is always requested from the network. No account or reservation data is cached.
 self.addEventListener('install', event => { event.waitUntil(self.skipWaiting()); });
 self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
+self.addEventListener('push', event => {
+  let data;
+  try { data = event.data?.json(); } catch { data = null; }
+  const id = typeof data?.notificationId === 'string' && /^[0-9a-f-]{36}$/i.test(data.notificationId) ? data.notificationId : null;
+  const bookingId = data?.type === 'booking-reminder' && typeof data.bookingId === 'string' && /^[0-9a-f-]{36}$/i.test(data.bookingId) ? data.bookingId : null;
+  const announcementId = data?.type === 'player-announcement' && typeof data.announcementId === 'string' && /^[0-9a-f-]{36}$/i.test(data.announcementId) ? data.announcementId : null;
+  event.waitUntil(self.registration.showNotification(typeof data?.title === 'string' ? data.title : ${JSON.stringify(name)}, {
+    body: typeof data?.body === 'string' ? data.body : 'Tenés un nuevo aviso de reservas. Abrí la app para consultarlo.',
+    icon: new URL('./pwa/${brand.toUpperCase() === 'PURA VIDA' ? 'pura-vida' : 'padel-center'}-192.png', self.registration.scope).href,
+    tag: announcementId ? 'announcement-' + announcementId : bookingId ? 'reminder-' + bookingId + '-' + String(data.scheduledStart || '') : id ? 'booking-' + id : 'booking-notice',
+    data: { notificationId: id, bookingId, announcementId },
+  }));
+});
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const id = event.notification.data?.notificationId;
+  const bookingId = event.notification.data?.bookingId;
+  const announcementId = event.notification.data?.announcementId;
+  const url = new URL(self.registration.scope);
+  const reminder = typeof bookingId === 'string' && /^[0-9a-f-]{36}$/i.test(bookingId);
+  const announcement = typeof announcementId === 'string' && /^[0-9a-f-]{36}$/i.test(announcementId);
+  if (announcement) url.searchParams.set('playerAnnouncement', announcementId);
+  else if (reminder) url.searchParams.set('bookingReminder', bookingId);
+  else if (typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)) url.searchParams.set('bookingNotice', id);
+  event.waitUntil((async () => {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = clients.find(client => client.url.startsWith(self.registration.scope));
+    if (existing) {
+      await existing.focus();
+      existing.postMessage({ type: announcement ? 'OPEN_PLAYER_ANNOUNCEMENT' : reminder ? 'OPEN_PLAYER_BOOKING_REMINDER' : 'OPEN_BOOKING_NOTIFICATION', id: announcement ? announcementId : reminder ? bookingId : id });
+    } else await self.clients.openWindow(url.href);
+  })());
+});
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET' || event.request.mode !== 'navigate' || new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(fetch(event.request, { cache: 'no-store' }).catch(() => new Response(${JSON.stringify(offline)}, {

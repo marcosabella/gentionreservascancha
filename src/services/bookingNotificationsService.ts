@@ -16,6 +16,11 @@ export interface BookingNotification {
 export type NotificationCursor = { created_at: string; id: string };
 
 export const bookingNotificationsService = {
+  async getById(id: string): Promise<BookingNotification | null> {
+    const { data, error } = await supabase.from('booking_notifications').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data ? { ...data, is_read: false } : null;
+  },
   async list(cursor: NotificationCursor | null = null): Promise<{ items: BookingNotification[]; unreadCount: number; hasMore: boolean }> {
     const { data, error } = await supabase.rpc('booking_notification_feed', {
       before_at: cursor?.created_at ?? null, before_id: cursor?.id ?? null,

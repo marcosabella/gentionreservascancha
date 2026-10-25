@@ -1,5 +1,8 @@
 project_id = "project"
 
+[functions.dispatch-booking-push]
+verify_jwt = false
+
 [api]
 enabled = true
 port = 55000

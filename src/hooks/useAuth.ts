@@ -3,6 +3,7 @@ import { AppUser, AuthUser, UserRole } from '../types';
 import { normalizePermissions } from '../config/permissions';
 import { supabase } from '../lib/supabase';
 import { authUserFromProfile, InvalidProfileSession } from '../utils/sessionProfile';
+import { bookingPushService } from '../services/bookingPushService';
 
 const normalizeUsername = (value: string) => value.trim().toLowerCase();
 
@@ -221,6 +222,7 @@ export const useAuth = () => {
   const signOut = async () => {
     try {
       if (supabase) {
+        await bookingPushService.disable().catch(() => { /* Auth session deletion also revokes server push subscriptions. */ });
         await supabase.auth.signOut();
       }
       setUser(null);

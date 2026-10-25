@@ -36,6 +36,7 @@ export const tabPermissions: Record<string, string> = {
   'turnos-fijos': 'recurring.view', disponibilidad: 'availability.view', jugadores: 'players.view',
   ventas: 'sales.view', 'cuenta-corriente': 'accounts.view', torneos: 'tournaments.view',
   canchas: 'courts.view', consumibles: 'products.view', usuarios: 'users.admin-only', caja: 'cash.view',
+  notificaciones: 'notifications.admin-only',
 };
 
 export function canReadEmployeeTable(user: { role: UserRole; permissions?: readonly string[] } | null | undefined, table: string): boolean {

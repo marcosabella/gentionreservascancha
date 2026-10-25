@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Menu, X, Calendar, Clock, MapPin, ShoppingCart, Users, CreditCard, Home,
   ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, Key, Shield,
-  Trophy, List, CalendarOff, Banknote,
+  Trophy, List, CalendarOff, Banknote, BellRing,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { complexName, complexLogo } from '../config/complex';
@@ -58,6 +58,7 @@ const adminNavigation: (NavigationLink | NavigationGroup)[] = [
       { id: 'canchas', label: 'Canchas', icon: MapPin },
       { id: 'consumibles', label: 'Productos y precios', icon: ShoppingCart },
       { id: 'usuarios', label: 'Usuarios y permisos', icon: Shield },
+      { id: 'notificaciones', label: 'Notificaciones', icon: BellRing },
     ],
   },
 ];
@@ -68,6 +69,7 @@ const playerNavigation: NavigationLink[] = [
   { id: 'mis-reservas', label: 'Mis reservas', icon: Clock },
   { id: 'torneos', label: 'Torneos', icon: Trophy },
   { id: 'cuenta-corriente', label: 'Mi cuenta', icon: CreditCard },
+  { id: 'notificaciones', label: 'Notificaciones', icon: BellRing },
 ];
 
 const groupIds = adminNavigation.filter((item): item is NavigationGroup => 'children' in item)

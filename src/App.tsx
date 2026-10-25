@@ -7,6 +7,10 @@ import BookingCalendar from './components/BookingCalendar';
 import BookingForm from './components/BookingForm';
 import BookingList from './components/BookingList';
 import BookingNotifications from './components/BookingNotifications';
+import BookingPushControl from './components/BookingPushControl';
+import PlayerBookingReminder from './components/PlayerBookingReminder';
+import AdminNotificationSettings from './components/AdminNotificationSettings';
+import PlayerAnnouncements from './components/PlayerAnnouncements';
 import InstallPlayerApp from './components/InstallPlayerApp';
 import BookingEditForm from './components/BookingEditForm';
 import TurnCloseForm from './components/TurnCloseForm';
@@ -1555,7 +1559,15 @@ function App() {
       <div className="min-w-0 flex-1 transition-[margin] duration-200 lg:ml-64 lg:peer-data-[expanded=false]/sidebar:ml-16">
         <div className="p-6 pt-20 lg:pt-6">
           {isPlayer() && <InstallPlayerApp />}
+          {isPlayer() && user?.playerId && <PlayerAnnouncements key={user.id} userId={user.id} />}
           {isAdmin() && user && <div className="mb-4 flex justify-end"><BookingNotifications key={user.id} userId={user.id} /></div>}
+          {isPlayer() && user?.playerId && <PlayerBookingReminder key={user.id} playerId={user.playerId} bookings={filteredBookings} />}
+          {(isAdmin() || isPlayer()) && user && <section hidden={activeTab !== 'notificaciones'} aria-labelledby="notification-settings-title" className="rounded-xl border border-gray-200 bg-white p-6">
+            <h2 id="notification-settings-title" className="text-xl font-semibold text-gray-900">Notificaciones</h2>
+            <p className="mb-5 mt-2 text-sm text-gray-600">{isPlayer() ? 'Activá los recordatorios para recibir un aviso antes de tus turnos.' : 'Configurá en este dispositivo los avisos de reservas y cancelaciones de jugadores.'}</p>
+            <BookingPushControl key={user.id} userId={user.id} isPlayer={isPlayer()} />
+            {isAdmin() && activeTab === 'notificaciones' && <AdminNotificationSettings />}
+          </section>}
           {activeTab === 'no-access' && <div className="rounded-xl border border-gray-200 bg-white p-6"><h2 className="text-xl font-semibold">Sin módulos habilitados</h2><p className="mt-2 text-gray-600">Solicitá al administrador que configure los permisos de tu usuario.</p></div>}
           {/* Dashboard */}
           {activeTab === 'dashboard' && allowEmployee('dashboard.view') && (
