@@ -1,0 +1,23 @@
+{
+  "project": "zcixnnzxxkylotbjudhk",
+  "announcements": 2,
+  "exposed_tables": 0,
+  "history_digest": "22827c14c9929a6fad430473c4469431",
+  "history_trigger": 1,
+  "migration_digest": "15199eb9bf9d44a3ace09f5ca87ff732",
+  "multiple_players": true,
+  "protected_tables": 3,
+  "recipients": 2,
+  "secured_rpcs": 6,
+  "selection_digest": "2a7b6124d1e95b06be3d26052a72b7c3",
+  "updated_workers": 3,
+  "worker": {
+    "name": "dispatch-booking-push",
+    "status": "ACTIVE",
+    "version": 4,
+    "updated_at": 1792780870748
+  },
+  "publicWorkerDenied": true,
+  "verificationScope": "backend",
+  "at": "2026-10-23T19:06:07.364Z"
+}

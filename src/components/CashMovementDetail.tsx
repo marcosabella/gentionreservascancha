@@ -15,10 +15,10 @@ export default function CashMovementDetail({ row, onClose }: { row: CashMovement
       <button type="button" autoFocus aria-label="Cerrar detalle" onClick={() => dialog.current?.close()} className="rounded-lg p-2 hover:bg-gray-100"><X className="h-5 w-5" /></button>
     </div>
     <div className="space-y-5 p-5">
-      <div><p className="font-semibold">{row.description}</p><p className="mt-1 text-sm text-gray-500">{cashDate(row.created_at)} · {row.actor_name}</p></div>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><p className="font-semibold">{row.description}</p><p className="text-sm text-gray-500">{cashDate(row.created_at)} · {row.actor_name}</p></div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {Object.entries(cashMethodLabels).map(([method, label]) => <div key={method} className="rounded-lg bg-gray-50 p-3"><p className="text-sm text-gray-500">{label}</p><p className={`mt-1 font-semibold ${row.amounts[method as keyof typeof row.amounts] < 0 ? 'text-red-600' : 'text-gray-900'}`}>{money(row.amounts[method as keyof typeof row.amounts])}</p></div>)}
-        <div className="rounded-lg bg-green-50 p-3"><p className="text-sm text-green-800">Total</p><p className="mt-1 font-bold text-green-900">{money(row.amounts.cash + row.amounts.card + row.amounts.transfer)}</p></div>
+        <div className="rounded-lg bg-amber-50 p-3"><p className="text-sm text-amber-800">Cuenta Corriente</p><p className="mt-1 font-semibold text-amber-900">{money(row.currentAccount)}</p></div>
       </div>
       <section><h3 className="mb-3 font-semibold">{row.source_type === 'booking' ? 'Detalle de la reserva' : 'Detalle'}</h3>
         <div className="space-y-2">{source.notes.map((line, index) => <p key={index} className="break-words rounded-lg bg-gray-50 p-3 text-sm">{line}</p>)}</div>

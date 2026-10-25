@@ -8,7 +8,12 @@
   "cash": true,
   "playerCredit": true,
   "bookingNotifications": true,
+  "bookingPush": true,
+  "playerAnnouncements": true,
+  "announcementPlayerSelection": true,
+  "announcementHistory": true,
+  "separateNotificationTabs": true,
   "playerAppInstall": true,
   "localUpdates": false,
-  "at": "2026-10-23T13:38:48.821Z"
+  "at": "2026-10-23T19:10:04.730Z"
 }

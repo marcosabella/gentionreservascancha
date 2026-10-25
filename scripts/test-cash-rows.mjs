@@ -19,4 +19,8 @@ assert.equal(cashMovementRows([expense, { ...expense, id: 'expense2' }]).length,
 const combined = cashMovementRows([cash, transfer, expense]);
 assert.equal(combined.reduce((sum, row) => sum + row.amounts.cash, 0), 7500);
 assert.equal(combined.flatMap(row => row.entries).length, 3);
+const financed = cashMovementRows([{ ...cash, source_detail: ['Jugador A · Cuenta corriente $ 16000,00', 'Jugador B · Sin pago $ 0,00'] }, { ...transfer, source_detail: ['Jugador A · Cuenta corriente $ 16000,00', 'Jugador B · Sin pago $ 0,00'] }]);
+assert.equal(financed.length, 1);
+assert.equal(financed[0].currentAccount, 16000, 'Financed amount is shown once for a combined receipt');
+assert.equal(financed[0].amounts.cash + financed[0].amounts.transfer, 38000, 'Debt is not added to collections');
 console.log('PASS: receipt columns, complete ledger detail, separate corrections/expenses, unchanged totals.');

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Booking } from '../types';
 import { calculatePlayerCost, formatCurrency, formatDate } from '../utils/timeSlots';
+import { playerPaymentAmount } from '../utils/bookingPayments';
 
 interface BookingDetailContentProps {
   booking: Booking;
@@ -21,6 +22,7 @@ const BookingDetailContent: React.FC<BookingDetailContentProps> = ({ booking, ge
   };
 
   const getPlayerPaymentLabel = (player: Booking['players'][number]) => {
+    if (player.paymentSplits?.length === 0 || (!player.paymentSplits && !player.paymentMethod)) return 'Sin pago propio';
     if (player.paymentSplits && player.paymentSplits.length > 0) {
       return player.paymentSplits
         .filter(split => split.amount > 0)
@@ -69,7 +71,7 @@ const BookingDetailContent: React.FC<BookingDetailContentProps> = ({ booking, ge
                 <span>{player.phone || 'Sin teléfono'}</span>
                 <span>{getPlayerPaymentLabel(player)}</span>
                 <span className="text-right font-medium">
-                  {booking.status === 'completed' ? formatCurrency(playerCosts[player.id] || 0) : '-'}
+                  {booking.status === 'completed' ? formatCurrency(playerPaymentAmount(player, playerCosts[player.id] || 0)) : '-'}
                 </span>
               </div>
             ))}

@@ -1,8 +1,10 @@
 import type { CashMovement } from '../types/cash';
+import { cashSourceDetails } from './cashSourceDetails';
 
 export type CashMovementRow = CashMovement & {
   entries: CashMovement[];
   amounts: Record<CashMovement['method'], number>;
+  currentAccount: number;
 };
 
 // Combine the different payment methods emitted together by a receipt.
@@ -20,6 +22,7 @@ export function cashMovementRows(movements: CashMovement[]): CashMovementRow[] {
       candidate.amounts[movement.method] = Number(movement.amount);
     } else {
       const row: CashMovementRow = { ...movement, entries: [movement],
+        currentAccount: cashSourceDetails(movement.source_detail).payments.filter(payment => payment.method === 'Cuenta corriente').reduce((sum, payment) => sum + payment.amount, 0),
         amounts: { cash: 0, card: 0, transfer: 0, [movement.method]: Number(movement.amount) } };
       rows.push(row);
       candidates.set(key, row);

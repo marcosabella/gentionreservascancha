@@ -6,7 +6,7 @@ export function cashSourceDetails(lines: string[] = []) {
     const separator = line.lastIndexOf(' · ');
     const player = line.slice(0, separator);
     const parts = line.slice(separator + 3).split(' + ');
-    const matches = parts.map(part => part.match(/^(Efectivo|Tarjeta|Transferencia|Cuenta corriente|Sin medio informado) \$ (-?\d+(?:,\d+)?)$/));
+    const matches = parts.map(part => part.match(/^(Efectivo|Tarjeta|Transferencia|Cuenta corriente|Sin medio informado|Sin pago) \$ (-?\d+(?:,\d+)?)$/));
     if (separator < 1 || !matches.every(match => match)) {
       notes.push(line);
       continue;

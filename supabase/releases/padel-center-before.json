@@ -7,7 +7,7 @@
   "cash": "cash_sessions",
   "counts": {
     "accounts": 132,
-    "bookings": 505,
+    "bookings": 507,
     "players": 317,
     "profiles": 54,
     "sales": 279
@@ -180,7 +180,31 @@
     {
       "name": "cash_movement_source_name",
       "version": "20261023120000"
+    },
+    {
+      "name": "booking_notifications",
+      "version": "20261023130000"
+    },
+    {
+      "name": "booking_web_push",
+      "version": "20261023150000"
+    },
+    {
+      "name": "cash_zero_player_payments",
+      "version": "20261023160000"
+    },
+    {
+      "name": "player_booking_reminders",
+      "version": "20261023170000"
+    },
+    {
+      "name": "player_announcements",
+      "version": "20261023180000"
+    },
+    {
+      "name": "player_announcement_selection",
+      "version": "20261023190000"
     }
   ],
-  "at": "2026-10-23T12:02:21.589Z"
+  "at": "2026-10-23T19:05:06.288Z"
 }

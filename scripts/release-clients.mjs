@@ -85,6 +85,13 @@ function verifyBundle() {
   if(!bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project && bundle.includes(other.project)) || /127\.0\.0\.1:560|localhost:560/.test(bundle)) throw Error('Build has an incorrect database/function endpoint');
   if(!bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Build is missing the latest features');
   if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Build is missing player booking notifications');
+  if(!bundle.includes('register_booking_push') || !bundle.includes('Activar avisos al dispositivo'))throw Error('Build is missing device push registration');
+  if(!bundle.includes('Probar aviso en este dispositivo'))throw Error('Build is missing the device notification display test');
+  if(!bundle.includes('update_booking_reminder_settings') || !bundle.includes('Anticipación del recordatorio'))throw Error('Build is missing configurable player reminders');
+  if(!bundle.includes('send_player_announcement') || !bundle.includes('Buscar jugadores') || !bundle.includes('Agregar seleccionados') || !bundle.includes('Vaciar grilla') || !bundle.includes('player_ids') || !bundle.includes('notification-panel-reminders'))throw Error('Build is missing announcement selection, recipient grid or separate settings tabs');
+  if(!bundle.includes('admin_player_announcement_history') || !bundle.includes('admin_player_announcement_deliveries') || !bundle.includes('Historial de notificaciones enviadas') || !bundle.includes('notification-panel-history'))throw Error('Build is missing the separate history tab and delivery status');
+  const worker=readFileSync(join(outputDir,'sw.js'),'utf8');
+  if(!worker.includes("addEventListener('push'") || !worker.includes("addEventListener('notificationclick'"))throw Error('Build is missing push worker handlers');
 }
 if(command==='build') {
   const publishedAt=new Date().toISOString(),version=`${Date.now()}-${randomUUID().slice(0,8)}`;
@@ -100,7 +107,12 @@ const token=(configuration.users[configuration.userId]??Object.values(configurat
 if(!token)throw Error('Netlify session unavailable');
 async function api(path,{method='GET',body,contentType='application/json'}={}) {
   const response=await fetch(`https://api.netlify.com/api/v1${path}`,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':contentType},body:body===undefined?undefined:contentType==='application/json'?JSON.stringify(body):body});
-  const result=await response.json().catch(()=>null);if(!response.ok)throw Error(`Netlify ${method} ${path}: HTTP ${response.status}`);return result;
+  const result=await response.json().catch(()=>null);
+  if(!response.ok) {
+    const detail=typeof result?.message==='string'?result.message:typeof result?.error==='string'?result.error:'';
+    throw Error(`Netlify ${method} ${path}: HTTP ${response.status}${detail?' · '+detail:''}`);
+  }
+  return result;
 }
 const sites=await api('/sites?per_page=100');const site=sites.find(site=>site.name===client.site);
 if(!site)throw Error('Expected existing Netlify site not found');
@@ -115,7 +127,7 @@ if(command==='deploy') {
   }
   const files={},uploads=new Map();
   for(const file of collect(outputDir)){const data=readFileSync(file);const hash=createHash('sha1').update(data).digest('hex');const urlPath='/'+relative(outputDir,file).replaceAll('\\','/');files[urlPath]=hash;uploads.set(hash,{path:urlPath,data});}
-  const deploy=await api(`/sites/${site.id}/deploys`,{method:'POST',body:{files,draft:false,title:`${client.brand} · Actualizaciones del sistema y acceso local`}});
+  const deploy=await api(`/sites/${site.id}/deploys`,{method:'POST',body:{files,draft:false,title:`${client.brand} · Prueba de visualización de notificaciones en el dispositivo`}});
   for(const hash of deploy.required??[]){const file=uploads.get(hash);if(!file)throw Error('Unknown required file');await api(`/deploys/${deploy.id}/files${file.path}`,{method:'PUT',body:file.data,contentType:'application/octet-stream'});}
   let ready;
   for(let attempt=0;attempt<30;attempt++){ready=await api(`/deploys/${deploy.id}`);if(['ready','error'].includes(ready.state))break;await new Promise(resolve=>setTimeout(resolve,1500));}
@@ -129,6 +141,11 @@ if(!response.ok || !assetPath)throw Error('Published HTML unavailable');
 const asset=await fetch(new URL(assetPath,url));const bundle=await asset.text();
 if(!asset.ok || !bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project&&bundle.includes(other.project)) || !bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Published site failed database/feature verification');
 if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Published site is missing player booking notifications');
+if(!bundle.includes('register_booking_push') || !bundle.includes('Activar avisos al dispositivo'))throw Error('Published site is missing device push registration');
+if(!bundle.includes('Probar aviso en este dispositivo'))throw Error('Published site is missing the device notification display test');
+if(!bundle.includes('update_booking_reminder_settings') || !bundle.includes('Anticipación del recordatorio'))throw Error('Published site is missing configurable player reminders');
+if(!bundle.includes('send_player_announcement') || !bundle.includes('Buscar jugadores') || !bundle.includes('Agregar seleccionados') || !bundle.includes('Vaciar grilla') || !bundle.includes('player_ids') || !bundle.includes('notification-panel-reminders'))throw Error('Published site is missing announcement selection, recipient grid or separate settings tabs');
+if(!bundle.includes('admin_player_announcement_history') || !bundle.includes('admin_player_announcement_deliveries') || !bundle.includes('Historial de notificaciones enviadas') || !bundle.includes('notification-panel-history'))throw Error('Published site is missing the separate history tab and delivery status');
 const expectedHtml=readFileSync(join(outputDir,'index.html'),'utf8');if(!expectedHtml.includes(assetPath))throw Error('Published asset does not match this build');
 if(!html.includes('rel="manifest"') || !bundle.includes('Instalar app'))throw Error('Published player app installation is missing');
 const appManifestResponse=await fetch(new URL('manifest.json?check='+Date.now(),url));
@@ -146,4 +163,4 @@ if(name==='padel-center') {
   if(JSON.stringify(manifest)!==JSON.stringify(expected))throw Error('Published local update differs from this release');
   localUpdates=true;
 }
-const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,playerCredit:true,bookingNotifications:true,playerAppInstall:true,localUpdates,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));
+const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,playerCredit:true,bookingNotifications:true,bookingPush:true,playerAnnouncements:true,announcementPlayerSelection:true,announcementHistory:true,separateNotificationTabs:true,playerAppInstall:true,localUpdates,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));
