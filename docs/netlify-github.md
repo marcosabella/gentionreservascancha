@@ -2,6 +2,8 @@
 
 El sitio existente `padelcenter.netlify.app` se conecta al repositorio
 `marcosabella/gentionreservascancha`, rama `master`.
+La integración usa una clave de repositorio de solo lectura y un webhook de
+GitHub para los eventos `push`. No requiere intervención de Codex para publicar.
 
 Netlify instala las dependencias del lockfile y ejecuta
 `node scripts/build-netlify.mjs`, con salida en `dist` y Node.js 22.
