@@ -1,3 +1,4 @@
+import { endTimeToMinutes } from '../utils/availability';
 import { ActionButton } from '../config/AccessContext';
 import React from 'react';
 import { MapPin, Star, Clock, Zap, Edit, Trash2, Plus, Eye } from 'lucide-react';
@@ -151,9 +152,9 @@ const CourtList: React.FC<CourtListProps> = ({ courts, onEditCourt, onDeleteCour
                     <div className="text-xs text-gray-500">
                       {(() => {
                         const [startHour, startMinute] = court.startTime.split(':').map(Number);
-                        const [endHour, endMinute] = court.endTime.split(':').map(Number);
+
                         const startTimeMinutes = startHour * 60 + startMinute;
-                        const endTimeMinutes = endHour * 60 + endMinute;
+                        const endTimeMinutes = endTimeToMinutes(court.startTime, court.endTime);
                         return Math.floor((endTimeMinutes - startTimeMinutes) / 90);
                       })()} turnos disponibles
                     </div>

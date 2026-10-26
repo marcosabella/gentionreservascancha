@@ -42,7 +42,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
 }) => {
   const [selectedDate, setSelectedDate] = useState(getArgentinaDateString);
   const accessUser = useContext(AccessContext);
-  const [selectedCourt, setSelectedCourt] = useState(courts[0]?.id || '');
+  const [selectedCourt, setSelectedCourt] = useState('all');
   const [showBookingPopup, setShowBookingPopup] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDialog, setShowDialog] = useState(false);
@@ -58,9 +58,9 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
     onCancel: () => {}
   });
   
-  const selectedCourtData = courts.find(c => c.id === selectedCourt);
-  const startTime = selectedCourtData?.startTime || '08:00';
-  const endTime = selectedCourtData?.endTime || '22:00';
+  const visibleCourts = selectedCourt === 'all'
+    ? courts
+    : courts.filter(court => court.id === selectedCourt);
   
   // Debug: Log props received
   console.log('🎯 BOOKING CALENDAR PROPS:');
@@ -70,30 +70,20 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
   console.log('Selected Date:', selectedDate);
   console.log('Selected Court:', selectedCourt);
 
-  const timeSlots = generateTimeSlots(
-    bookings,
-    recurringBookings,
-    courtUnavailabilities,
-    selectedCourt,
-    selectedDate,
-    startTime,
-    endTime
-  );
-
-  const handleSlotClick = (slot: TimeSlot) => {
+  const handleSlotClick = (courtId: string, slot: TimeSlot) => {
     if (slot.available) {
       if (accessUser?.role === 'employee' && !hasPermission(accessUser, 'bookings.create')) return;
       // Calcular hora de fin (1.5 horas después)
       const [startHour, startMinute] = slot.time.split(':').map(Number);
       const startTimeMinutes = startHour * 60 + startMinute;
       const endTimeMinutes = startTimeMinutes + 90; // 90 minutos = 1.5 horas
-      const endHour = Math.floor(endTimeMinutes / 60);
+      const endHour = Math.floor(endTimeMinutes / 60) % 24;
       const endMinute = endTimeMinutes % 60;
       const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
 
       onNewBooking({
         date: selectedDate,
-        courtId: selectedCourt,
+        courtId,
         startTime: slot.time,
         endTime: endTime
       });
@@ -215,6 +205,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
             onChange={(e) => setSelectedCourt(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
           >
+            <option value="all">Todas las canchas</option>
             {courts.map(court => (
               <option key={court.id} value={court.id}>
                 {court.name} ({court.startTime} - {court.endTime})
@@ -230,14 +221,23 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
           {formatDate(selectedDate)}
         </h3>
         <p className="text-blue-700 text-sm">
-          {selectedCourtData?.name} - 
-          Horarios disponibles marcados en verde (Horario: {startTime} - {endTime})
+          Horarios disponibles marcados en verde. Cada cancha muestra sus propios turnos.
         </p>
       </div>
 
       {/* Time Slots Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {timeSlots.map(slot => {
+      <div className={`grid grid-cols-1 gap-6 ${visibleCourts.length > 1 ? 'lg:grid-cols-2' : ''}`}>
+        {visibleCourts.map(court => (
+          <section key={court.id} aria-label={`Turnos de ${court.name}`} className="min-w-0 rounded-xl border border-gray-200 bg-white p-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3">
+              <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                <MapPin className="h-5 w-5 text-green-600" />
+                {court.name}
+              </h3>
+              <span className="text-sm text-gray-500">{court.startTime} - {court.endTime}</span>
+            </div>
+            <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${visibleCourts.length === 1 ? 'md:grid-cols-3 lg:grid-cols-4' : ''}`}>
+        {generateTimeSlots(bookings, recurringBookings, courtUnavailabilities, court.id, selectedDate, court.startTime, court.endTime).map(slot => {
           const booking = bookings.find(b => b.id === slot.bookingId);
           const unavailability = courtUnavailabilities.find(item => item.id === slot.unavailableId);
           const bookingOwner = booking?.players[0];
@@ -249,7 +249,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
           const selectedDateObj = dateOnlyToLocalDate(selectedDate);
           const dayOfWeek = selectedDateObj.getDay();
           const recurringBooking = recurringBookings.find(recurring => 
-            recurring.courtId === selectedCourt &&
+            recurring.courtId === court.id &&
             recurring.dayOfWeek === dayOfWeek &&
             recurring.startTime === slot.time &&
             recurring.isActive &&
@@ -271,7 +271,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
           return (
             <div
               key={slot.time}
-              className={`p-4 rounded-lg border-2 text-center transition-all ${
+              className={`h-[152px] overflow-y-auto p-4 rounded-lg border-2 text-center transition-all ${
                 slot.available
                   ? 'border-green-200 bg-green-50 hover:bg-green-100 cursor-pointer'
                   : unavailability
@@ -281,7 +281,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
                   : 'border-red-200 bg-red-50 hover:bg-red-100 cursor-pointer'
               }`}
               onClick={() => {
-                handleSlotClick(slot);
+                handleSlotClick(court.id, slot);
               }}
             >
               <div className="flex items-center justify-center space-x-1 mb-2">
@@ -356,6 +356,9 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
             </div>
           );
         })}
+            </div>
+          </section>
+        ))}
       </div>
 
       {/* Legend */}

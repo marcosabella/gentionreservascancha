@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getSaleShares, saleParticipantAmounts } from './utils/saleDistribution';
 import { AccessContext } from './config/AccessContext';
 import { hasPermission, tabPermissions } from './config/permissions';
 import type { UserRole } from './types';
@@ -1292,6 +1293,19 @@ function App() {
     };
 
     const syncSaleCurrentAccountEntry = async (saleId: string, persistToSupabase: boolean) => {
+      if (saleData.distribution) {
+        const distribution = saleData.distribution;
+        if (persistToSupabase) { await refetchData(); return; }
+        const shares = getSaleShares(saleData.items, saleData.distribution);
+        setLocalCurrentAccountEntries(previous => [
+          ...previous.filter(entry => entry.relatedSaleId !== saleId),
+          ...distribution.participants.filter(person => person.paymentMethod === 'current_account' && saleParticipantAmounts(person, shares[person.id] || 0).net > 0).map(person => ({
+            id: crypto.randomUUID(), playerId: person.id, type: 'debit' as const, amount: saleParticipantAmounts(person, shares[person.id] || 0).net,
+            description: 'Venta directa compartida', date: saleData.date, time: saleData.time, relatedSaleId: saleId, createdAt: new Date().toISOString()
+          }))
+        ]);
+        return;
+      }
       if (isEmployee()) { await refetchData(); return; }
       const relatedEntry = currentCurrentAccountEntries.find(entry => entry.relatedSaleId === saleId);
       const entryData = buildSaleCurrentAccountEntry(saleId);
@@ -1392,7 +1406,7 @@ function App() {
     
     // Find the sale to check if it has related current account entries
     const sale = currentSales.find(s => s.id === saleId);
-    if (!isEmployee() && sale && sale.paymentMethod === 'current_account') {
+    if (!isEmployee() && sale && !sale.distribution && sale.paymentMethod === 'current_account') {
       // Find and delete related current account entry
       const relatedEntry = currentCurrentAccountEntries.find(entry => 
         entry.relatedSaleId === saleId
@@ -1413,9 +1427,10 @@ function App() {
       if (isSupabaseDataReady) {
         await salesService.delete(saleId);
         setDbSales(prev => prev.filter(sale => sale.id !== saleId));
-        if (isEmployee()) await refetchData();
+        if (isEmployee() || sale?.distribution) await refetchData();
       } else {
         setLocalSales(prev => prev.filter(sale => sale.id !== saleId));
+        if (sale?.distribution) setLocalCurrentAccountEntries(previous => previous.filter(entry => entry.relatedSaleId !== saleId));
       }
     } catch (error) {
       console.error('Error deleting sale:', error);

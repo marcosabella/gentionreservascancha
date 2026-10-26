@@ -4,6 +4,9 @@ const projectRef = 'qsvdpdifygmzdawxfyqv';
 // Development uses isolated data by default. Production data needs an explicit
 // opt-in, and this command never publishes frontend or backend changes.
 const isolated = !process.argv.includes('--production-data');
+// Preview a later closing locally while the published app keeps its schedule.
+const closingTime = process.argv.find(argument => argument.startsWith('--closing-time='))?.split('=')[1] ?? '';
+if (closingTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(closingTime)) throw new Error('Invalid --closing-time (expected HH:MM).');
 const result = JSON.parse(execFileSync('supabase', isolated ? [
   'status', '--workdir', 'dev/pura-vida.local', '--output', 'json',
 ] : [
@@ -22,6 +25,7 @@ const server = spawn(process.execPath, [
     VITE_SUPABASE_URL: isolated ? result.API_URL : `https://${projectRef}.supabase.co`,
     VITE_SUPABASE_ANON_KEY: anonKey,
     VITE_COMPLEX_NAME: 'PURA VIDA',
+    VITE_DEV_COURT_END_TIME: closingTime,
     VITE_TEST_ENVIRONMENT: isolated ? 'true' : 'false',
     VITE_SUPABASE_FUNCTIONS_URL: isolated ? 'http://127.0.0.1:56010/functions/v1' : '',
   },

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Save, X, Plus, Minus, Search, User, Users } from 'lucide-react';
-import { Sale, SaleItem, ConsumableItem, PlayerProfile, ConsumableCategory } from '../types';
+import { Save, X, Plus, Minus, Search } from 'lucide-react';
+import { Sale, SaleItem, SaleParticipant, SaleDistribution, ConsumableItem, PlayerProfile, ConsumableCategory } from '../types';
+import { addSaleParticipant, getSaleShares, isFinalConsumer, saleParticipantAmounts, validateSaleDistribution } from '../utils/saleDistribution';
 import { formatCurrency } from '../utils/timeSlots';
 import { getArgentinaDateString, getArgentinaTimeString } from '../utils/date';
 import PlayerSearchPopup from './PlayerSearchPopup';
@@ -40,8 +41,41 @@ const SaleForm: React.FC<SaleFormProps> = ({
   const [showPlayerSearch, setShowPlayerSearch] = useState(false);
   const [showConsumableSearch, setShowConsumableSearch] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [participants, setParticipants] = useState<SaleParticipant[]>(() => sale?.distribution?.participants.map(person => ({ ...person, paymentMethod: person.paymentMethod || sale.paymentMethod })) || [{ id: sale?.customer.id || crypto.randomUUID(), name: sale?.customer.name || 'Consumidor Final', registered: sale?.customerType === 'registered', email: sale?.customer.email, phone: sale?.customer.phone, paymentMethod: sale?.paymentMethod || 'cash' }]);
+  const [assignments, setAssignments] = useState<SaleDistribution['items']>(sale?.distribution?.items || []);
+  const distribution = { participants, items: assignments };
+  const shares = getSaleShares(formData.items, distribution);
+
+  const addParticipant = (person: SaleParticipant) => {
+    const next = addSaleParticipant(participants, person);
+    const first = next[0];
+    setFormData(previous => ({ ...previous, customerType: first.registered ? 'registered' : 'guest', customer: { id: first.registered ? first.id : undefined, name: first.name, email: first.email || '', phone: first.phone || '' } }));
+    setParticipants(next);
+    setAssignments(previous => previous.map(item => ({ ...item, assignedToPlayers: item.assignedToPlayers.filter(id => next.some(person => person.id === id)) })));
+  };
+  const removeParticipant = (id: string) => {
+    const remaining = participants.filter(person => person.id !== id);
+    setParticipants(remaining.length ? remaining : [{ id: crypto.randomUUID(), name: 'Consumidor Final', registered: false, paymentMethod: 'cash' }]);
+    setAssignments(previous => previous.map(item => ({ ...item, assignedToPlayers: item.assignedToPlayers.filter(personId => personId !== id) })));
+    if (!remaining.length) handleResetToConsumidorFinal();
+    if (remaining.length) {
+      const first = remaining[0];
+      setFormData(previous => ({ ...previous, customerType: first.registered ? 'registered' : 'guest', customer: { id: first.registered ? first.id : undefined, name: first.name, email: first.email || '', phone: first.phone || '' } }));
+    }
+  };
+  const updateAssignment = (consumableId: string, patch: Partial<SaleDistribution['items'][number]>) => {
+    setAssignments(previous => {
+      const row = previous.find(item => item.consumableId === consumableId) || { consumableId, splitBetweenPlayers: true, assignedToPlayers: [] };
+      return [...previous.filter(item => item.consumableId !== consumableId), { ...row, ...patch }];
+    });
+  };
 
   const totalAmount = formData.items.reduce((sum, item) => sum + item.subtotal, 0);
+  const complimentaryTotal = participants.reduce((sum, person) => sum + saleParticipantAmounts(person, shares[person.id] || 0).waived, 0);
+  const setParticipantMethod = (id: string, method: SaleParticipant['paymentMethod']) => {
+    setParticipants(previous => previous.map(person => person.id !== id ? person : { ...person, paymentMethod: method,
+      complimentary: method === 'complimentary' ? { amount: shares[id] || 0, ...(person.complimentary?.reason ? { reason: person.complimentary.reason } : {}) } : person.paymentMethod === 'complimentary' ? undefined : person.complimentary }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +92,15 @@ const SaleForm: React.FC<SaleFormProps> = ({
       return;
     }
 
-    if (formData.paymentMethod === 'current_account' &&
+    if (participants.length) {
+      const error = validateSaleDistribution(formData.items, distribution);
+      if (error) { alert(error); return; }
+      if (participants.some(person => person.paymentMethod === 'current_account' && (!person.registered || !isCreditEnabled(person.id, players)))) {
+        alert('La cuenta corriente solo está disponible para jugadores habilitados.'); return;
+      }
+    }
+
+    if (!participants.length && formData.paymentMethod === 'current_account' &&
       (formData.customerType !== 'registered' || !isCreditEnabled(formData.customer.id, players) &&
         !(sale?.paymentMethod === 'current_account' && sale.customer.id === formData.customer.id && totalAmount <= sale.totalAmount))) {
       alert('Este jugador no tiene cuenta corriente habilitada. Seleccioná otro medio de pago.');
@@ -77,8 +119,9 @@ const SaleForm: React.FC<SaleFormProps> = ({
         phone: formData.customer.phone || undefined
       },
       items: formData.items,
-      totalAmount,
-      paymentMethod: formData.paymentMethod,
+      distribution: participants.length ? { participants: participants.map(person => person.complimentary ? { ...person, complimentary: { ...person.complimentary, amount: saleParticipantAmounts(person, shares[person.id] || 0).waived } } : person), items: assignments.filter(row => formData.items.some(item => item.consumableId === row.consumableId)) } : { participants: [{ id: crypto.randomUUID(), name: 'Consumidor Final', registered: false, paymentMethod: 'cash' }], items: [] },
+      totalAmount: Math.round(totalAmount * 100) / 100,
+      paymentMethod: 'cash',
       notes: formData.notes || undefined,
       bookingId: sale?.bookingId,
       courtName: sale?.courtName
@@ -93,23 +136,14 @@ const SaleForm: React.FC<SaleFormProps> = ({
   };
 
   const handlePlayerSelect = (player: PlayerProfile) => {
-    setFormData(prev => ({
-      ...prev,
-      customerType: 'registered',
-      customer: {
-        id: player.id,
-        name: player.name,
-        email: player.email,
-        phone: player.phone
-      }
-    }));
-    setShowPlayerSearch(false);
+    addParticipant({ id: player.id, name: player.name, registered: true, email: player.email, phone: player.phone });
   };
 
   const handleResetToConsumidorFinal = () => {
     setFormData(prev => ({
       ...prev,
       customerType: 'guest',
+      paymentMethod: 'cash',
       customer: {
         id: undefined,
         name: 'Consumidor Final',
@@ -127,7 +161,7 @@ const SaleForm: React.FC<SaleFormProps> = ({
     } else {
       // Add new item
       const newItem: SaleItem = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         consumableId: consumable.id,
         name: consumable.name,
         price: consumable.price,
@@ -154,7 +188,7 @@ const SaleForm: React.FC<SaleFormProps> = ({
       ...prev,
       items: prev.items.map(item =>
         item.id === itemId
-          ? { ...item, quantity, subtotal: item.price * quantity }
+          ? { ...item, quantity, subtotal: Math.round(item.price * quantity * 100) / 100 }
           : item
       )
     }));
@@ -188,115 +222,30 @@ const SaleForm: React.FC<SaleFormProps> = ({
 
               {/* Customer Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Información del Cliente</h3>
-                
-                {/* Cliente Actual */}
-                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {formData.customerType === 'registered' ? (
-                        <Users className="w-6 h-6 text-blue-600" />
-                      ) : (
-                        <User className="w-6 h-6 text-gray-600" />
-                      )}
-                      <div>
-                        <h4 className="font-medium text-gray-900">{formData.customer.name}</h4>
-                        {formData.customerType === 'registered' && formData.customer.email && (
-                          <p className="text-sm text-gray-600">{formData.customer.email}</p>
-                        )}
-                        {formData.customerType === 'registered' && formData.customer.phone && (
-                          <p className="text-sm text-gray-500">{formData.customer.phone}</p>
-                        )}
-                        <p className="text-xs text-blue-600 font-medium">
-                          {formData.customerType === 'registered' ? 'Jugador Registrado' : 'Consumidor Final'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex space-x-2">
-                      {formData.customerType === 'registered' && (
-                        <button
-                          type="button"
-                          onClick={handleResetToConsumidorFinal}
-                          className="px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                        >
-                          Consumidor Final
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setShowPlayerSearch(true)}
-                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-1"
-                      >
-                        <Search className="w-4 h-4" />
-                        <span>Buscar Cliente</span>
-                      </button>
-                    </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold text-gray-900">Jugadores / clientes</h3>
+                    <button type="button" onClick={() => setShowPlayerSearch(true)} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"><Search className="h-4 w-4" />Agregar/buscar cliente</button>
                   </div>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-gray-50 text-gray-600"><tr><th className="p-3">Cliente / jugador</th><th className="p-3">Tipo</th><th className="p-3">Medio de pago</th><th className="p-3 text-right">Importe</th><th className="w-12 p-3"><span className="sr-only">Quitar</span></th></tr></thead>
+                      <tbody className="divide-y">{participants.map(person => {
+                        const amounts = saleParticipantAmounts(person, shares[person.id] || 0);
+                        return <React.Fragment key={person.id}><tr>
+                          <td className="p-3 font-medium">{person.name}</td><td className="p-3 text-gray-500">{person.registered ? 'Registrado' : 'Ocasional'}</td>
+                          <td className="p-3"><select aria-label={'Medio de pago de ' + person.name} value={person.paymentMethod || 'cash'} onChange={event => setParticipantMethod(person.id, event.target.value as SaleParticipant['paymentMethod'])} className="w-full min-w-32 rounded-lg border p-2"><option value="cash">Efectivo</option><option value="card">Tarjeta</option><option value="transfer">Transferencia</option><option value="current_account" disabled={!person.registered || !isCreditEnabled(person.id, players)}>Cuenta Corriente</option>{!isFinalConsumer(person) && <option value="complimentary">Bonificado (sin cobro)</option>}</select>
+                          </td>
+                          <td className="p-3 text-right font-semibold">{formatCurrency(amounts.net)}{amounts.waived > 0 && <span className="block text-xs font-normal text-amber-800">Bonificado: {formatCurrency(amounts.waived)}</span>}</td>
+                          <td className="p-3"><button type="button" aria-label={`Quitar a ${person.name}`} onClick={() => removeParticipant(person.id)}><X className="h-4 w-4 text-red-600" /></button></td>
+                        </tr></React.Fragment>;
+                      })}</tbody>
+                    </table>
+                    {!participants.length && <p className="p-3 text-sm text-gray-500">Agregá clientes para dividir consumibles. Sin selección, se registra a Consumidor Final.</p>}
+                  </div>
+                  {participants.length > 0 && <p className="text-xs text-gray-500">Cada cliente paga su parte con el medio elegido. Cuenta corriente disponible para jugadores habilitados.</p>}
                 </div>
 
-                {/* Payment Method */}
-                <div className="border-t border-gray-200 pt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Método de Pago
-                  </label>
-                  <div className="grid grid-flow-col auto-cols-fr gap-2 sm:gap-3">
-                    <label className="flex min-w-0 items-center gap-2 px-2 py-3 sm:px-3 text-xs sm:text-sm border rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="cash"
-                        checked={formData.paymentMethod === 'cash'}
-                        onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-                        className="text-green-600 focus:ring-green-500"
-                      />
-                      <span className="font-medium">Efectivo</span>
-                    </label>
-                    
-                    <label className="flex min-w-0 items-center gap-2 px-2 py-3 sm:px-3 text-xs sm:text-sm border rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="card"
-                        checked={formData.paymentMethod === 'card'}
-                        onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-                        className="text-green-600 focus:ring-green-500"
-                      />
-                      <span className="font-medium">Tarjeta</span>
-                    </label>
-                    
-                    <label className="flex min-w-0 items-center gap-2 px-2 py-3 sm:px-3 text-xs sm:text-sm border rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="transfer"
-                        checked={formData.paymentMethod === 'transfer'}
-                        onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-                        className="text-green-600 focus:ring-green-500"
-                      />
-                      <span className="font-medium">Transferencia</span>
-                    </label>
-
-                  {/* Cuenta Corriente solo para jugadores registrados */}
-                  {formData.customerType === 'registered' && formData.customer.id && (
-                    <label className="flex min-w-0 items-center gap-2 px-2 py-3 sm:px-3 text-xs sm:text-sm border rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="current_account"
-                        disabled={!isCreditEnabled(formData.customer.id, players)}
-                        checked={formData.paymentMethod === 'current_account'}
-                        onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-                        className="text-green-600 focus:ring-green-500"
-                      />
-                      <span className="min-w-0">
-                        <span className="block font-medium">Cuenta Corriente</span>
-                        <span className="block text-xs text-gray-500">{isCreditEnabled(formData.customer.id, players) ? 'Habilitada' : 'Deshabilitada'}</span>
-                      </span>
-                    </label>
-                  )}
-                  </div>
-                </div>
               </div>
 
               {/* Products */}
@@ -335,7 +284,7 @@ const SaleForm: React.FC<SaleFormProps> = ({
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {formData.items.map(item => (
-                          <tr key={item.id} className="hover:bg-gray-50">
+                          <React.Fragment key={item.id}><tr className="hover:bg-gray-50">
                             <td className="px-2 sm:px-3 py-3 font-medium text-gray-900 [overflow-wrap:anywhere]">{item.name}</td>
                             <td className="px-2 py-3">
                               <input
@@ -359,6 +308,13 @@ const SaleForm: React.FC<SaleFormProps> = ({
                               </button>
                             </td>
                           </tr>
+                          {participants.length > 0 && <tr><td colSpan={5} className="px-3 pb-3">
+                            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={assignments.find(row => row.consumableId === item.consumableId)?.splitBetweenPlayers ?? true} onChange={event => updateAssignment(item.consumableId, { splitBetweenPlayers: event.target.checked })} />Dividir {item.name} entre todos</label>
+                            {assignments.find(row => row.consumableId === item.consumableId)?.splitBetweenPlayers === false && <div className="mt-2 flex flex-wrap gap-3">{participants.map(person => {
+                              const selected = assignments.find(row => row.consumableId === item.consumableId)?.assignedToPlayers || [];
+                              return <label key={person.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selected.includes(person.id)} onChange={event => updateAssignment(item.consumableId, { assignedToPlayers: event.target.checked ? [...selected, person.id] : selected.filter(id => id !== person.id) })} />{person.name}</label>;
+                            })}</div>}
+                          </td></tr>}</React.Fragment>
                         ))}
                       </tbody>
                     </table>
@@ -384,12 +340,13 @@ const SaleForm: React.FC<SaleFormProps> = ({
               {totalAmount > 0 && (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center justify-between text-xl font-bold text-green-600">
-                    <span>Total:</span>
-                    <span>{formatCurrency(totalAmount)}</span>
+                    <span>Total a cobrar:</span>
+                    <span>{formatCurrency(totalAmount - complimentaryTotal)}</span>
                   </div>
                 </div>
               )}
 
+              {complimentaryTotal > 0 && <div className="flex justify-between rounded-lg bg-amber-50 p-3 text-sm text-amber-900"><span>Bonificado (sin ingreso ni deuda):</span><strong>{formatCurrency(complimentaryTotal)}</strong></div>}
               {/* Submit Buttons */}
               <div className="flex space-x-3">
                 <button
@@ -417,10 +374,11 @@ const SaleForm: React.FC<SaleFormProps> = ({
       {showPlayerSearch && (
         <PlayerSearchPopup
           players={players}
-          selectedPlayers={[]}
-          maxPlayers={1}
+          title="Agregar/buscar cliente"
+          onGuestAdd={(name) => addParticipant({ id: crypto.randomUUID(), name, registered: false })}
+          selectedPlayers={participants.map(person => ({ ...person, paymentMethod: person.paymentMethod === 'complimentary' ? undefined : person.paymentMethod, email: person.email || '', phone: person.phone || '', isOrganizer: false }))}
           onPlayerSelect={handlePlayerSelect}
-          onPlayerDeselect={() => {}}
+          onPlayerDeselect={removeParticipant}
           onClose={() => setShowPlayerSearch(false)}
           onCreateNew={() => setShowPlayerSearch(false)}
         />

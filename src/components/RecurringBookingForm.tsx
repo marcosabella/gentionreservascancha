@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Save, X, Calendar, Clock, Users, Search } from 'lucide-react';
 import { RecurringBooking, Court, PlayerProfile } from '../types';
-import { formatCurrency } from '../utils/timeSlots';
+import { generateTimeOptionsForDropdown, formatCurrency } from '../utils/timeSlots';
 import PlayerSearchPopup from './PlayerSearchPopup';
 
 interface RecurringBookingFormProps {
@@ -43,13 +43,9 @@ const RecurringBookingForm: React.FC<RecurringBookingFormProps> = ({
     { value: 0, label: 'Domingo' }
   ];
 
-  const timeOptions = [];
-  for (let hour = 8; hour <= 22; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      timeOptions.push(timeString);
-    }
-  }
+  const timeOptions = selectedCourt
+    ? generateTimeOptionsForDropdown(selectedCourt.startTime, selectedCourt.endTime)
+    : [];
 
   const updateEndTime = (startTime: string) => {
     if (!startTime) {
@@ -60,7 +56,7 @@ const RecurringBookingForm: React.FC<RecurringBookingFormProps> = ({
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const startTimeMinutes = startHour * 60 + startMinute;
     const endTimeMinutes = startTimeMinutes + 90; // 90 minutos = 1.5 horas
-    const endHour = Math.floor(endTimeMinutes / 60);
+    const endHour = Math.floor(endTimeMinutes / 60) % 24;
     const endMinute = endTimeMinutes % 60;
     const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
     

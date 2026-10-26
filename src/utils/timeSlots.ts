@@ -1,20 +1,19 @@
 import { TimeSlot, Booking, RecurringBooking, CourtUnavailability } from '../types';
-import { getUnavailabilityForSlot, timeToMinutes } from './availability';
+import { getUnavailabilityForSlot, timeToMinutes, endTimeToMinutes, addMinutesToTime } from './availability';
 
 export const generateTimeOptionsForDropdown = (startTime: string = '13:30', endTime: string = '24:00', slotDuration: number = 90): string[] => {
   const timeOptions: string[] = [];
   
   // Parse start and end times
   const [startHour, startMinute] = startTime.split(':').map(Number);
-  const [endHour, endMinute] = endTime.split(':').map(Number);
   
   // Generate time options every 30 minutes
   let currentTime = startHour * 60 + startMinute; // Convert to minutes
-  const endTimeMinutes = endHour * 60 + endMinute;
+  const endTimeMinutes = endTimeToMinutes(startTime, endTime);
   const increment = 30; // 30 minutes increment
 
-  while (currentTime <= endTimeMinutes) {
-    const hours = Math.floor(currentTime / 60);
+  while (currentTime + slotDuration <= endTimeMinutes) {
+    const hours = Math.floor(currentTime / 60) % 24;
     const minutes = currentTime % 60;
     const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     timeOptions.push(timeString);
@@ -109,22 +108,18 @@ export const generateTimeSlots = (
 
   // Parse start and end times
   const [startHour, startMinute] = startTime.split(':').map(Number);
-  const [endHour, endMinute] = endTime.split(':').map(Number);
   
   // Generate slots every 1.5 hours (90 minutes)
   let currentTime = startHour * 60 + startMinute; // Convert to minutes
-  const endTimeMinutes = endHour * 60 + endMinute;
+  const endTimeMinutes = endTimeToMinutes(startTime, endTime);
   const slotDuration = 90; // 90 minutes = 1.5 hours
 
   while (currentTime + slotDuration <= endTimeMinutes) {
-    const startHours = Math.floor(currentTime / 60);
+    const startHours = Math.floor(currentTime / 60) % 24;
     const startMinutes = currentTime % 60;
-    const endTimeSlot = currentTime + slotDuration;
-    const endHours = Math.floor(endTimeSlot / 60);
-    const endMinutesSlot = endTimeSlot % 60;
     
     const time = `${startHours.toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}`;
-    const slotEndTime = `${endHours.toString().padStart(2, '0')}:${endMinutesSlot.toString().padStart(2, '0')}`;
+    const slotEndTime = addMinutesToTime(time, slotDuration);
     
     console.log(`\n--- Checking slot ${time} ---`);
     
@@ -136,7 +131,7 @@ export const generateTimeSlots = (
       
       // Check for time overlap: booking overlaps if it starts before our slot ends and ends after our slot starts
       const bookingStartMinutes = timeToMinutes(booking.startTime);
-      const bookingEndMinutes = timeToMinutes(booking.endTime);
+      const bookingEndMinutes = endTimeToMinutes(booking.startTime, booking.endTime);
       const slotStartMinutes = currentTime;
       const slotEndMinutes = currentTime + slotDuration;
       
@@ -177,7 +172,7 @@ export const generateTimeSlots = (
       
       // Check for time overlap with recurring booking
       const recurringStartMinutes = timeToMinutes(recurring.startTime);
-      const recurringEndMinutes = timeToMinutes(recurring.endTime);
+      const recurringEndMinutes = endTimeToMinutes(recurring.startTime, recurring.endTime);
       const slotStartMinutes = currentTime;
       const slotEndMinutes = currentTime + slotDuration;
       
@@ -242,9 +237,7 @@ export const generateTimeSlots = (
 };
 
 export const calculateDuration = (startTime: string, endTime: string): number => {
-  const start = new Date(`2000-01-01T${startTime}`);
-  const end = new Date(`2000-01-01T${endTime}`);
-  return (end.getTime() - start.getTime()) / (1000 * 60 * 60); // hours
+  return (endTimeToMinutes(startTime, endTime) - timeToMinutes(startTime)) / 60;
 };
 
 export const formatCurrency = (amount: number): string => {

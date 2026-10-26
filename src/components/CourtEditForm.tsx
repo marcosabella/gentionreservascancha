@@ -1,3 +1,4 @@
+import { endTimeToMinutes } from '../utils/availability';
 import React, { useState } from 'react';
 import { Save, X, Plus, Trash2 } from 'lucide-react';
 import { Court } from '../types';
@@ -69,7 +70,7 @@ const CourtEditForm: React.FC<CourtEditFormProps> = ({ court, onSave, onCancel }
       }
     }
     // Add 24:00 as end time option
-    options.push('24:00');
+    options.push('24:00', '00:30');
     return options;
   };
 
@@ -193,9 +194,9 @@ const CourtEditForm: React.FC<CourtEditFormProps> = ({ court, onSave, onCancel }
                   <p><strong>Horario:</strong> {formData.startTime} - {formData.endTime}</p>
                   <p><strong>Turnos disponibles:</strong> {(() => {
                     const [startHour, startMinute] = formData.startTime.split(':').map(Number);
-                    const [endHour, endMinute] = formData.endTime.split(':').map(Number);
+
                     const startTimeMinutes = startHour * 60 + startMinute;
-                    const endTimeMinutes = endHour * 60 + endMinute;
+                    const endTimeMinutes = endTimeToMinutes(formData.startTime, formData.endTime);
                     return Math.floor((endTimeMinutes - startTimeMinutes) / 90);
                   })()} turnos de 1.5 horas</p>
                 </div>

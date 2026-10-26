@@ -1,4 +1,5 @@
 import type { Sale } from '../types';
+import { getSaleShares, saleNetTotal, saleParticipantAmounts } from './saleDistribution';
 
 export const salesPaymentMethods = [
   { id: 'cash', label: 'Efectivo' },
@@ -25,12 +26,16 @@ export function isSaleInPeriod(date: string, from: string, to: string) {
 export function getSalePaymentTotals(sale: Sale): SalesPaymentTotals {
   const totals = emptyTotals();
   const add = (method: string | undefined, amount: number) => {
+    if (method === 'complimentary') return;
     const bucket = salesPaymentMethods.some(payment => payment.id === method)
       ? method as Sale['paymentMethod'] : 'unassigned';
     totals[bucket] += cents(amount);
   };
   const players = sale.bookingPlayers;
-  if (sale.type !== 'booking' || !players?.length) {
+  if (sale.type === 'direct' && sale.distribution) {
+    const shares = getSaleShares(sale.items, sale.distribution);
+    sale.distribution.participants.forEach(person => add(person.paymentMethod || sale.paymentMethod, saleParticipantAmounts(person, shares[person.id] || 0).net));
+  } else if (sale.type !== 'booking' || !players?.length) {
     add(sale.paymentMethod, sale.totalAmount);
   } else {
     // Older bookings have only a payment method; distribute their costs in cents.
@@ -63,7 +68,7 @@ export function summarizeSales(sales: Sale[]) {
   const payments = emptyTotals();
   let totalCents = 0;
   sales.forEach(sale => {
-    totalCents += cents(sale.totalAmount);
+    totalCents += cents(saleNetTotal(sale));
     const amounts = getSalePaymentTotals(sale);
     (Object.keys(payments) as PaymentBucket[]).forEach(method => { payments[method] += cents(amounts[method]); });
   });

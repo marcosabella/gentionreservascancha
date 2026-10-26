@@ -79,7 +79,7 @@ export const useSupabaseData = (user: AuthUser | null = null) => {
         pricePerTurn: court.price_per_turn,
         features: court.features || [],
         startTime: court.start_time || '08:00',
-        endTime: court.end_time || '22:00'
+        endTime: (import.meta.env.DEV && import.meta.env.VITE_DEV_COURT_END_TIME) || court.end_time || '22:00'
       })));
 
       const { data: playersData, error: playersError } = canReadEmployeeTable(user, 'players') ? await supabase
@@ -274,6 +274,7 @@ export const useSupabaseData = (user: AuthUser | null = null) => {
           subtotal: item.subtotal
         })),
         totalAmount: sale.total_amount,
+        distribution: sale.distribution || undefined,
         paymentMethod: sale.payment_method as any,
         notes: sale.notes,
         bookingId: sale.booking_id,

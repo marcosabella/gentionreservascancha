@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Save, X, Plus, Minus, ShoppingCart, Users, Calendar, Clock, Search } from 'lucide-react';
-import { Booking, Consumption, ConsumableItem, ConsumableCategory, Court, Player, PlayerProfile } from '../types';
+import { Booking, Consumption, ConsumableItem, ConsumableCategory, Court, Player, PlayerProfile, PaymentSplit } from '../types';
 import { formatCurrency, formatDate } from '../utils/timeSlots';
 import ConsumableSearchPopup from './ConsumableSearchPopup';
 import PlayerSearchPopup from './PlayerSearchPopup';
 import PlayerEditForm from './PlayerEditForm';
 import { isCreditEnabled, playersWithUnauthorizedCredit } from '../utils/playerCredit';
+import { complimentaryAmount } from '../utils/bookingComplimentary';
 
 type PaymentMethod = NonNullable<Player['paymentMethod']>;
 
@@ -91,7 +92,7 @@ const BookingEditForm: React.FC<BookingEditFormProps> = ({
     if (isCompletedBooking) {
       const playerCosts = calculatePlayerCosts();
       const playersWithoutPayment = formData.players.filter(player =>
-        (playerCosts[player.id] || 0) > 0 && !player.paymentMethod
+        (playerCosts[player.id] || 0) > complimentaryAmount(player) + 0.005 && !player.paymentMethod
       );
       if (playersWithoutPayment.length > 0) {
         alert(`Los siguientes jugadores necesitan un metodo de pago: ${playersWithoutPayment.map(player => player.name).join(', ')}`);
@@ -100,6 +101,9 @@ const BookingEditForm: React.FC<BookingEditFormProps> = ({
     }
 
     const playerCosts = calculatePlayerCosts();
+    if (formData.players.some(player => complimentaryAmount(player) > Math.round((playerCosts[player.id] || 0) * 100) / 100 + 0.01)) {
+      alert('Revisá las bonificaciones: no pueden superar el importe del jugador.'); return;
+    }
     
     const updatedBooking: Booking = {
       ...booking,
@@ -107,9 +111,11 @@ const BookingEditForm: React.FC<BookingEditFormProps> = ({
         ? formData.players.map(player => {
             const amount = Math.round((playerCosts[player.id] || 0) * 100) / 100;
 
+            const paymentSplits = normalizeCompletedPlayerPaymentSplits(player, amount);
             return {
               ...player,
-              paymentSplits: normalizeCompletedPlayerPaymentSplits(player, amount)
+              paymentSplits,
+              paymentMethod: paymentSplits.find(split => split.method !== 'complimentary')?.method as PaymentMethod | undefined
             };
           })
         : formData.players,
@@ -165,19 +171,19 @@ const BookingEditForm: React.FC<BookingEditFormProps> = ({
     setFormData(prev => ({
       ...prev,
       players: prev.players.map(player =>
-        player.id === playerId ? { ...player, paymentMethod, paymentSplits: undefined } : player
+        player.id === playerId ? { ...player, paymentMethod, paymentSplits: complimentaryAmount(player) > 0 ? [...(paymentMethod ? [{ method: paymentMethod, amount: Math.max(0, (calculatePlayerCosts()[playerId] || 0) - complimentaryAmount(player)) }] : []), ...(player.paymentSplits || []).filter(split => split.method === 'complimentary')] : undefined } : player
       )
     }));
   };
 
-  const normalizeCompletedPlayerPaymentSplits = (player: Player, amount: number) => {
-    if (!player.paymentMethod || amount <= 0) {
+  const normalizeCompletedPlayerPaymentSplits = (player: Player, amount: number): PaymentSplit[] => {
+    if ((!player.paymentMethod && complimentaryAmount(player) === 0) || amount <= 0) {
       return [];
     }
 
     const existingSplits = (player.paymentSplits || []).filter(split => split.amount > 0);
     if (existingSplits.length === 0) {
-      return [{ method: player.paymentMethod, amount }];
+      return [{ method: player.paymentMethod || 'cash', amount }];
     }
 
     const currentTotal = existingSplits.reduce((total, split) => total + split.amount, 0);
@@ -187,11 +193,11 @@ const BookingEditForm: React.FC<BookingEditFormProps> = ({
       return existingSplits;
     }
 
-    const targetMethod: PaymentMethod = existingSplits.some(split => split.method === 'current_account')
+    const targetMethod = existingSplits.some(split => split.method === 'current_account')
       ? 'current_account'
       : existingSplits.some(split => split.method === player.paymentMethod)
-        ? player.paymentMethod
-        : existingSplits[0].method;
+        ? player.paymentMethod || 'cash'
+        : existingSplits.find(split => split.method !== 'complimentary')?.method || 'cash';
     const targetIndex = existingSplits.findIndex(split => split.method === targetMethod);
 
     if (targetIndex >= 0) {
@@ -376,12 +382,13 @@ const BookingEditForm: React.FC<BookingEditFormProps> = ({
                               onChange={(e) => updatePlayerPaymentMethod(player.id, e.target.value as Player['paymentMethod'])}
                               className="w-full min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-sm"
                             >
-                              <option value="">Seleccionar método</option>
+                              <option value="">{complimentaryAmount(player) > 0 ? 'Bonificado sin cobro' : 'Seleccionar método'}</option>
                               <option value="cash">Efectivo</option>
                               <option value="card">Tarjeta</option>
                               <option value="transfer">Transferencia</option>
                               <option value="current_account" disabled={!isCreditEnabled(player.id, players)}>Cuenta Corriente{!isCreditEnabled(player.id, players) ? ' (deshabilitada)' : ''}</option>
                             </select>
+                            {complimentaryAmount(player) > 0 && <p className="mt-1 text-xs text-amber-800">Bonificado: {formatCurrency(complimentaryAmount(player))}</p>}
                           </td>
                         )}
                         <td className="px-2 py-3 align-middle">

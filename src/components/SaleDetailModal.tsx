@@ -1,6 +1,8 @@
 import React from 'react';
 import { X, Calendar, Clock, User, CreditCard, FileText, Users, ShoppingCart } from 'lucide-react';
 import { Sale } from '../types';
+import { getSaleShares, saleNetTotal, saleComplimentaryTotal, saleParticipantAmounts } from '../utils/saleDistribution';
+import { playerPaymentAmount } from '../utils/bookingPayments';
 import { formatCurrency, formatDate } from '../utils/timeSlots';
 
 interface SaleDetailModalProps {
@@ -15,6 +17,7 @@ const SaleDetailModal: React.FC<SaleDetailModalProps> = ({ sale, onClose }) => {
       case 'card': return 'Tarjeta';
       case 'transfer': return 'Transferencia';
       case 'current_account': return 'Cuenta Corriente';
+      case 'complimentary': return 'Bonificado';
       default: return method;
     }
   };
@@ -64,6 +67,12 @@ const SaleDetailModal: React.FC<SaleDetailModalProps> = ({ sale, onClose }) => {
   });
 
   const getConsumptionAssignment = (itemId: string) => {
+    if (sale.distribution) {
+      const item = sale.items.find(row => row.id === itemId);
+      const assignment = sale.distribution.items.find(row => row.consumableId === item?.consumableId);
+      if (!assignment || assignment.splitBetweenPlayers) return 'Dividido entre todos';
+      return 'Asignado a: ' + sale.distribution.participants.filter(person => assignment.assignedToPlayers.includes(person.id)).map(person => person.name).join(', ');
+    }
     const consumption = bookingConsumptions.find(consumption => consumption.id === itemId);
 
     if (!consumption) return null;
@@ -94,6 +103,7 @@ const SaleDetailModal: React.FC<SaleDetailModalProps> = ({ sale, onClose }) => {
           </div>
 
           <div className="space-y-6">
+            {saleComplimentaryTotal(sale) > 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Bonificado sin cobro ni deuda: {formatCurrency(saleComplimentaryTotal(sale))}</p>}
             {/* Sale Type */}
             {sale.type === 'booking' && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -132,7 +142,7 @@ const SaleDetailModal: React.FC<SaleDetailModalProps> = ({ sale, onClose }) => {
                   <CreditCard className="w-5 h-5 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-500">Método de Pago</p>
-                    <p className="font-medium">{getPaymentMethodLabel(sale.paymentMethod)}</p>
+                    <p className="font-medium">{sale.distribution ? [...new Set(sale.distribution.participants.map(person => getPaymentMethodLabel(person.paymentMethod || sale.paymentMethod)))].join(' / ') : getPaymentMethodLabel(sale.paymentMethod)}</p>
                   </div>
                 </div>
               </div>
@@ -164,6 +174,10 @@ const SaleDetailModal: React.FC<SaleDetailModalProps> = ({ sale, onClose }) => {
             </div>
 
             {/* Booking Players */}
+            {sale.distribution && <div className="space-y-2"><h3 className="text-lg font-semibold">Jugadores / clientes</h3>{sale.distribution.participants.map(person => {
+              const amounts = saleParticipantAmounts(person, getSaleShares(sale.items, sale.distribution!)[person.id] || 0);
+              return <div key={person.id} className="flex justify-between gap-3 rounded-lg border p-3"><span>{person.name}<span className="block text-xs text-gray-500">{getPaymentMethodLabel(person.paymentMethod || sale.paymentMethod)}</span>{amounts.waived > 0 && <span className="block text-xs text-amber-800">Bonificado: {formatCurrency(amounts.waived)}{person.complimentary?.reason ? ` · ${person.complimentary.reason}` : ''}</span>}</span><strong>{formatCurrency(amounts.net)}</strong></div>;
+            })}</div>}
             {bookingPlayers.length > 0 && (
               <div>
                 <div className="flex items-center space-x-2 mb-4">
@@ -197,7 +211,7 @@ const SaleDetailModal: React.FC<SaleDetailModalProps> = ({ sale, onClose }) => {
                       <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                         <span className="text-sm text-gray-600">Abonado</span>
                         <span className="text-base font-bold text-green-600">
-                          {formatCurrency(bookingPlayerCosts[player.id] || 0)}
+                          {formatCurrency(playerPaymentAmount(player, bookingPlayerCosts[player.id] || 0))}
                         </span>
                       </div>
                     </div>
@@ -252,7 +266,7 @@ const SaleDetailModal: React.FC<SaleDetailModalProps> = ({ sale, onClose }) => {
                           Total:
                         </td>
                         <td className="px-4 py-3 text-lg font-bold text-green-600 text-right">
-                          {formatCurrency(sale.totalAmount)}
+                          {formatCurrency(saleNetTotal(sale))}
                         </td>
                       </tr>
                     </tfoot>
@@ -290,7 +304,7 @@ const SaleDetailModal: React.FC<SaleDetailModalProps> = ({ sale, onClose }) => {
                 <div className="text-right">
                   <p className="text-sm text-green-700">Total de la venta</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(sale.totalAmount)}
+                    {formatCurrency(saleNetTotal(sale))}
                   </p>
                 </div>
               </div>

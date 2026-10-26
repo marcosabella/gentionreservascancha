@@ -324,6 +324,7 @@ export type Database = {
       }
       sales: {
         Row: {
+          distribution: import('../types').SaleDistribution | null
           id: string
           type: string
           date: string

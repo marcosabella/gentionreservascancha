@@ -776,6 +776,11 @@ export const tournamentsService = {
 // Sales
 export const salesService = {
   async create(sale: Omit<Sale, 'id' | 'createdAt'>) {
+    if (sale.distribution) {
+      const { data, error } = await supabase.rpc('save_shared_sale', { action: 'create', target: null, payload: sale });
+      if (error) throw error;
+      return data as string;
+    }
     const employeeResult = await employeeMutation('sales', 'create', null, sale);
     if (employeeResult) return employeeResult.id;
     const adminResult = await adminSaleMutation('create', null, sale);
@@ -824,6 +829,11 @@ export const salesService = {
   },
 
   async update(id: string, sale: Partial<Sale>) {
+    if (sale.distribution) {
+      const { error } = await supabase.rpc('save_shared_sale', { action: 'update', target: id, payload: sale });
+      if (error) throw error;
+      return;
+    }
     if (await employeeMutation('sales', 'update', id, sale)) return;
     if (await adminSaleMutation('update', id, sale)) return;
     const { error: saleError } = await supabase

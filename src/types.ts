@@ -40,8 +40,12 @@ export interface Player {
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'current_account';
 
 export interface PaymentSplit {
-  method: PaymentMethod;
+  method: PaymentMethod | 'complimentary';
   amount: number;
+  complimentaryFor?: 'court' | 'consumptions' | 'custom';
+  reason?: string;
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
 export interface Consumption {
@@ -113,6 +117,7 @@ export interface Sale {
     phone?: string;
   };
   items: SaleItem[];
+  distribution?: SaleDistribution;
   totalAmount: number;
   paymentMethod: 'cash' | 'card' | 'transfer' | 'current_account';
   notes?: string;
@@ -122,6 +127,30 @@ export interface Sale {
   bookingTotalPrice?: number; // Precio de cancha del turno finalizado
   bookingPlayers?: Player[]; // Jugadores del turno finalizado
   bookingConsumptions?: Consumption[]; // Consumibles con asignacion original del turno
+}
+
+export interface SaleParticipant {
+  id: string;
+  name: string;
+  registered: boolean;
+  paymentMethod?: PaymentMethod | 'complimentary';
+  complimentary?: {
+    amount: number;
+    reason?: string;
+    approvedBy?: string;
+    approvedAt?: string;
+  };
+  email?: string;
+  phone?: string;
+}
+
+export interface SaleDistribution {
+  participants: SaleParticipant[];
+  items: {
+    consumableId: string;
+    splitBetweenPlayers: boolean;
+    assignedToPlayers: string[];
+  }[];
 }
 
 export interface SaleItem {

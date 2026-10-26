@@ -1,6 +1,8 @@
 import type { Booking, CurrentAccountEntry, PaymentSplit, Sale } from '../types';
 import { calculatePlayerCost, getTotalConsumptionsCost } from './timeSlots';
 import { playerCreditAmount } from './playerCredit';
+import { complimentaryAmount } from './bookingComplimentary';
+import { getSaleShares, saleParticipantAmounts } from './saleDistribution';
 
 export interface PlayerMovement {
   id: string;
@@ -27,14 +29,15 @@ export function getPlayerMovements(playerId: string, bookings: Booking[], sales:
   bookings.filter(b => b.status === 'completed' && b.players.some(p => p.id === playerId)).forEach(booking => {
     bookingIds.add(booking.id);
     const player = booking.players.find(p => p.id === playerId)!;
-    const amount = round(calculatePlayerCost(booking)[playerId] ?? 0);
+    const amount = Math.max(0, round((calculatePlayerCost(booking)[playerId] ?? 0) - complimentaryAmount(player)));
     const courtTotal = booking.totalPrice > 0 ? booking.totalPrice : Math.max((booking.finalTotal ?? 0) - getTotalConsumptionsCost(booking), 0);
     const items = [{ name: `Cancha · ${booking.startTime.slice(0, 5)} a ${booking.endTime.slice(0, 5)} — Importe individual`, amount: round(courtTotal / booking.players.length) }];
     booking.consumptions.forEach(item => {
       const recipients = item.splitBetweenPlayers ? booking.players.map(p => p.id) : item.assignedToPlayers ?? [];
       if (recipients.includes(playerId)) items.push({ name: `${item.quantity} × ${item.name} — Importe individual`, amount: round(item.price * item.quantity / recipients.length) });
     });
-    const payments: PaymentSplit[] = player.paymentSplits?.filter(p => p.amount > 0).map(p => ({ ...p })) ?? [];
+    if (complimentaryAmount(player) > 0) items.push({ name: 'Bonificado', amount: -complimentaryAmount(player) });
+    const payments: PaymentSplit[] = player.paymentSplits?.filter(p => p.amount > 0 && p.method !== 'complimentary').map(p => ({ ...p })) ?? [];
     if (payments.length) {
       const credit = payments.find(p => p.method === 'current_account');
       if (credit) credit.amount = playerCreditAmount(player, amount);
@@ -42,7 +45,7 @@ export function getPlayerMovements(playerId: string, bookings: Booking[], sales:
     movements.push({ id: `booking:${booking.id}`, date: booking.date, time: booking.startTime, title: `Turno · ${booking.courtName}`, kind: 'Turno', amount, credit: false,
       payments: payments.length ? payments : [{ method: player.paymentMethod ?? booking.paymentMethod, amount }], items });
   });
-  sales.filter(s => s.customer.id === playerId).forEach(sale => {
+  sales.filter(s => s.distribution ? s.distribution.participants.some(person => person.id === playerId && person.registered) : s.customer.id === playerId).forEach(sale => {
     if (sale.type === 'booking' && sale.bookingId && bookingIds.has(sale.bookingId)) {
       saleIds.add(sale.id);
       return;
@@ -50,6 +53,16 @@ export function getPlayerMovements(playerId: string, bookings: Booking[], sales:
     // Bookings are represented by each player's own share, never the whole sale.
     if (sale.type !== 'direct') return;
     saleIds.add(sale.id);
+    if (sale.distribution) {
+      const distribution = sale.distribution;
+      const person = distribution.participants.find(person => person.id === playerId)!;
+      const amounts = saleParticipantAmounts(person, getSaleShares(sale.items, distribution)[playerId] || 0);
+      const items = sale.items.map(item => ({ name: `${item.quantity} × ${item.name} — Importe individual`, amount: getSaleShares([item], distribution)[playerId] || 0 })).filter(item => item.amount > 0);
+      if (amounts.waived > 0) items.push({ name: 'Bonificado', amount: -amounts.waived });
+      movements.push({ id: `sale:${sale.id}`, date: sale.date, time: sale.time, title: 'Venta directa', kind: 'Venta', amount: amounts.net, credit: false,
+        payments: amounts.net > 0 ? [{ method: person.paymentMethod, amount: amounts.net }] : [], items, notes: [sale.notes, person.complimentary?.reason].filter(Boolean).join(' · ') });
+      return;
+    }
     movements.push({ id: `sale:${sale.id}`, date: sale.date, time: sale.time, title: 'Venta directa', kind: 'Venta', amount: sale.totalAmount, credit: false,
       payments: [{ method: sale.paymentMethod, amount: sale.totalAmount }],
       items: sale.items.map(item => ({ name: `${item.quantity} × ${item.name}`, amount: item.subtotal })), notes: sale.notes });

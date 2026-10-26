@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import { buildSync } from 'esbuild';
+import { createRequire } from 'node:module';
+import { runInNewContext } from 'node:vm';
+import { webcrypto } from 'node:crypto';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+const compiled = buildSync({ stdin: { contents: `export * from './src/utils/saleDistribution'; export * from './src/utils/salesReport'; export * from './src/utils/playerMovements'; export {default as SaleForm} from './src/components/SaleForm'; export {default as Detail} from './src/components/SaleDetailModal';`, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', external: ['react', 'react-dom', 'lucide-react'] });
+const module = { exports: {} };
+runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require: createRequire(import.meta.url), crypto: webcrypto, console });
+const { getSaleShares, saleParticipantAmounts, saleComplimentaryTotal, saleNetTotal, validateSaleDistribution, getSalePaymentTotals, summarizeSales, getPlayerMovements, SaleForm, Detail } = module.exports;
+const items = [{ id: 'line', consumableId: 'product', name: 'Producto', price: 100.02, quantity: 1, subtotal: 100.02 }];
+const participants = [
+  { id: 'one', name: 'Jugador', registered: true, paymentMethod: 'current_account', complimentary: { amount: 20, reason: 'Cortesía parcial' } },
+  { id: 'two', name: 'Cliente ocasional', registered: false, paymentMethod: 'complimentary', complimentary: { amount: 999, reason: 'Invitación' } }
+];
+const sale = { id: 'sale', type: 'direct', date: '2031-03-01', time: '12:00', createdAt: '', customerType: 'registered', customer: participants[0], items, distribution: { participants, items: [] }, totalAmount: 100.02, paymentMethod: 'cash' };
+const shares = getSaleShares(items, sale.distribution);
+assert.equal(saleParticipantAmounts(participants[0], shares.one).net, 30.01);
+assert.equal(saleParticipantAmounts(participants[1], shares.two).net, 0);
+assert.equal(saleComplimentaryTotal(sale), 70.01); assert.equal(saleNetTotal(sale), 30.01);
+assert.equal(validateSaleDistribution(items, sale.distribution), null);
+assert(validateSaleDistribution(items, { ...sale.distribution, participants: [{ ...participants[0], complimentary: { amount: 90, reason: 'Error' } }, participants[1]] }));
+assert.equal(validateSaleDistribution(items, { ...sale.distribution, participants: [participants[0], { ...participants[1], complimentary: { amount: 0 } }] }), null);
+assert(validateSaleDistribution(items, { ...sale.distribution, participants: [participants[0], { ...participants[1], name: 'Consumidor Final' }] }));
+const summary = summarizeSales([sale]);
+assert.equal(summary.total, 30.01); assert.equal(summary.payments.current_account, 30.01); assert.equal(summary.payments.cash, 0); assert.equal(summary.difference, 0);
+assert.equal(getSalePaymentTotals(sale).unassigned, 0);
+const entry = { id: 'debt', playerId: 'one', type: 'debit', amount: 30.01, description: '', date: sale.date, time: sale.time, relatedSaleId: sale.id };
+const movement = getPlayerMovements('one', [], [sale], [entry])[0];
+assert.equal(movement.amount, 30.01); assert.equal(movement.balance, -30.01); assert(movement.items.some(item => item.name === 'Bonificado' && item.amount === -20));
+const form = renderToStaticMarkup(React.createElement(SaleForm, { sale, consumables: [], categories: [], players: [], onSave() {}, onCancel() {} }));
+assert(form.includes('Bonificado (sin cobro)')); assert(!form.includes('Bonificar parte')); assert(!form.includes('Motivo de bonificación')); assert(form.includes('30,01'));
+const defaultForm = renderToStaticMarkup(React.createElement(SaleForm, { consumables: [], categories: [], players: [], onSave() {}, onCancel() {} }));
+assert(defaultForm.includes('Consumidor Final')); assert(!defaultForm.includes('Bonificado (sin cobro)'));
+const detail = renderToStaticMarkup(React.createElement(Detail, { sale, onClose() {} }));
+assert(detail.includes('Cortesía parcial')); assert(detail.includes('Invitación')); assert(detail.includes('70,01'));
+const free = { ...sale, distribution: { ...sale.distribution, participants: participants.map(person => ({ ...person, paymentMethod: 'complimentary' })) } };
+assert.equal(saleNetTotal(free), 0); assert.equal(summarizeSales([free]).difference, 0);
+console.log('PASS: bonificación total/parcial, motivo, importes netos, reportes, cuenta individual, formulario y detalle.');

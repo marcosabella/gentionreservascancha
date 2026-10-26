@@ -1,3 +1,4 @@
+import { endTimeToMinutes } from '../utils/availability';
 import React, { useState } from 'react';
 import { Clock, Save, X } from 'lucide-react';
 
@@ -23,9 +24,9 @@ const ScheduleSettings: React.FC<ScheduleSettingsProps> = ({
     e.preventDefault();
     
     const [startHour, startMinute] = formData.startTime.split(':').map(Number);
-    const [endHour, endMinute] = formData.endTime.split(':').map(Number);
+
     const startTimeMinutes = startHour * 60 + startMinute;
-    const endTimeMinutes = endHour * 60 + endMinute;
+    const endTimeMinutes = endTimeToMinutes(formData.startTime, formData.endTime);
     
     if (startTimeMinutes >= endTimeMinutes) {
       alert('La hora de inicio debe ser menor que la hora de fin');
@@ -58,6 +59,7 @@ const ScheduleSettings: React.FC<ScheduleSettingsProps> = ({
         24:00
       </option>
     );
+    options.push(<option key="00:30" value="00:30">00:30 (día siguiente)</option>);
     return options;
   };
 
@@ -123,16 +125,16 @@ const ScheduleSettings: React.FC<ScheduleSettingsProps> = ({
                 {(() => {
                   const slots = [];
                   const [startHour, startMinute] = formData.startTime.split(':').map(Number);
-                  const [endHour, endMinute] = formData.endTime.split(':').map(Number);
+
                   let currentTime = startHour * 60 + startMinute;
-                  const endTimeMinutes = endHour * 60 + endMinute;
+                  const endTimeMinutes = endTimeToMinutes(formData.startTime, formData.endTime);
                   const slotDuration = 90;
 
                   while (currentTime + slotDuration <= endTimeMinutes) {
-                    const startHours = Math.floor(currentTime / 60);
+                    const startHours = Math.floor(currentTime / 60) % 24;
                     const startMinutes = currentTime % 60;
                     const endTimeSlot = currentTime + slotDuration;
-                    const endHours = Math.floor(endTimeSlot / 60);
+                    const endHours = Math.floor(endTimeSlot / 60) % 24;
                     const endMinutesSlot = endTimeSlot % 60;
                     
                     const timeSlot = `${startHours.toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')} - ${endHours.toString().padStart(2, '0')}:${endMinutesSlot.toString().padStart(2, '0')}`;
@@ -148,9 +150,9 @@ const ScheduleSettings: React.FC<ScheduleSettingsProps> = ({
               <p className="text-xs text-gray-500 mt-3 text-center font-medium">
                 Total de turnos disponibles: {(() => {
                   const [startHour, startMinute] = formData.startTime.split(':').map(Number);
-                  const [endHour, endMinute] = formData.endTime.split(':').map(Number);
+
                   const startTimeMinutes = startHour * 60 + startMinute;
-                  const endTimeMinutes = endHour * 60 + endMinute;
+                  const endTimeMinutes = endTimeToMinutes(formData.startTime, formData.endTime);
                   return Math.floor((endTimeMinutes - startTimeMinutes) / 90);
                 })()}
               </p>

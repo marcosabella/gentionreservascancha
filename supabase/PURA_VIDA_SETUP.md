@@ -104,6 +104,11 @@ al navegar y el contenido de escritorio adapta su margen a la barra contraída.
 
 Para ejecutar la vista de Pura Vida en `http://localhost:5173/`:
 `node scripts/dev-pura-vida.mjs`.
+Para ver localmente el turno de las 23:00 a 00:30 con la base de Pura Vida:
+`node scripts/dev-pura-vida.mjs --production-data --closing-time=00:30`.
+El cierre indicado se aplica solo a la vista de desarrollo; no cambia los horarios
+compartidos ni publica en Netlify. Las reservas creadas con `--production-data`
+sí se guardan en la base real de Pura Vida.
 El script usa por defecto el entorno local aislado de pruebas y pasa las variables
 de conexión al proceso Vite, sin modificar el archivo `.env`. La preparación y los
 comandos necesarios se detallan en `EMPLOYEE_PERMISSIONS.md`.

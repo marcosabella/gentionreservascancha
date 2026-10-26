@@ -6,14 +6,25 @@ export const timeToMinutes = (timeString: string): number => {
   return hours * 60 + minutes;
 };
 
+// Closing times before opening belong to the following calendar day.
+export const endTimeToMinutes = (start: string, end: string): number => {
+  const minutes = timeToMinutes(end);
+  return minutes < timeToMinutes(start) ? minutes + 1440 : minutes;
+};
+
+export const addMinutesToTime = (time: string, minutes: number): string => {
+  const total = timeToMinutes(time) + minutes;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+};
+
 export const timeRangesOverlap = (
   firstStart: string,
   firstEnd: string,
   secondStart: string,
   secondEnd: string
 ): boolean => {
-  return timeToMinutes(firstStart) < timeToMinutes(secondEnd) &&
-    timeToMinutes(firstEnd) > timeToMinutes(secondStart);
+  return timeToMinutes(firstStart) < endTimeToMinutes(secondStart, secondEnd) &&
+    endTimeToMinutes(firstStart, firstEnd) > timeToMinutes(secondStart);
 };
 
 export const getUnavailabilityForSlot = (

@@ -4,6 +4,8 @@ import { Search, X, User, Plus, Check } from 'lucide-react';
 import { PlayerProfile, Player } from '../types';
 
 interface PlayerSearchPopupProps {
+  title?: string;
+  onGuestAdd?: (name: string) => void;
   players: PlayerProfile[];
   selectedPlayers: Player[];
   maxPlayers?: number;
@@ -14,6 +16,8 @@ interface PlayerSearchPopupProps {
 }
 
 const PlayerSearchPopup: React.FC<PlayerSearchPopupProps> = ({
+  title,
+  onGuestAdd,
   players,
   selectedPlayers,
   maxPlayers,
@@ -43,7 +47,7 @@ const PlayerSearchPopup: React.FC<PlayerSearchPopupProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Seleccionar Jugadores</h2>
+              <h2 className="text-2xl font-bold text-gray-900">{title || 'Seleccionar Jugadores'}</h2>
               <p className="text-gray-600">
                 {maxPlayers === undefined
                   ? `${selectedPlayers.length} jugadores seleccionados`
@@ -70,14 +74,22 @@ const PlayerSearchPopup: React.FC<PlayerSearchPopupProps> = ({
             />
           </div>
 
+          {onGuestAdd && <div className="mb-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={!searchTerm.trim()} onClick={() => { onGuestAdd(searchTerm.trim()); setSearchTerm(''); }} className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50">Agregar como cliente ocasional</button>
+              <button type="button" onClick={() => onGuestAdd('Consumidor Final')} className="rounded-lg border px-3 py-2 text-sm">Agregar Consumidor Final</button>
+            </div>
+            <p className="text-xs text-gray-500">Buscá un jugador registrado o escribí un nombre para agregar un cliente ocasional.</p>
+            {selectedPlayers.length > 0 && <div className="flex flex-wrap gap-2">{selectedPlayers.map(player => <span key={player.id} className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm">{player.name}<button type="button" aria-label={`Quitar a ${player.name}`} onClick={() => onPlayerDeselect(player.id)}><X className="h-4 w-4" /></button></span>)}</div>}
+          </div>}
           {/* Create New Button */}
-          <ActionButton permission="players.create"
+          {!onGuestAdd && <ActionButton permission="players.create"
             onClick={onCreateNew}
             className="w-full mb-4 flex items-center justify-center space-x-2 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             <span>Crear Nuevo Jugador</span>
-          </ActionButton>
+          </ActionButton>}
 
           {/* Players List */}
           <div className="max-h-96 overflow-y-auto space-y-2">

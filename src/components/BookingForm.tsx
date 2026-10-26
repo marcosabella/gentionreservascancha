@@ -66,7 +66,7 @@ export default function BookingForm({
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const startTimeMinutes = startHour * 60 + startMinute;
     const endTimeMinutes = startTimeMinutes + 90; // 90 minutos = 1.5 horas
-    const endHour = Math.floor(endTimeMinutes / 60);
+    const endHour = Math.floor(endTimeMinutes / 60) % 24;
     const endMinute = endTimeMinutes % 60;
     const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
     

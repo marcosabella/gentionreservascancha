@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Save, X, Plus, Minus, Users, ShoppingCart, Calculator, Search } from 'lucide-react';
-import { Booking, Player, Consumption, ConsumableItem, PlayerProfile, ConsumableCategory, Court, PaymentMethod } from '../types';
+import { Booking, Player, Consumption, ConsumableItem, PlayerProfile, ConsumableCategory, Court, PaymentMethod, PaymentSplit } from '../types';
+import { bookingCostBreakdown, complimentaryAmount, toggleComplimentary } from '../utils/bookingComplimentary';
 import { formatCurrency } from '../utils/timeSlots';
 import PlayerSearchPopup from './PlayerSearchPopup';
 import PlayerEditForm from './PlayerEditForm';
@@ -66,11 +67,12 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
   const consumptionsCost = formData.consumptions.reduce((total, consumption) => 
     total + (consumption.price * consumption.quantity), 0);
   const finalTotal = courtCost + consumptionsCost;
-  const paymentMethods: { value: PaymentMethod; label: string }[] = [
+  const paymentMethods: { value: PaymentSplit['method']; label: string }[] = [
     { value: 'cash', label: 'Efectivo' },
     { value: 'card', label: 'Tarjeta' },
     { value: 'transfer', label: 'Transferencia' },
-    { value: 'current_account', label: 'Cuenta Corriente' }
+    { value: 'current_account', label: 'Cuenta Corriente' },
+    { value: 'complimentary', label: 'Bonificado (sin cobro)' }
   ];
 
   const [isSaving, setIsSaving] = useState(false);
@@ -90,6 +92,9 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
       alert('Los importes de pago deben ser números válidos y no negativos');
       return;
     }
+    if (formData.players.some(player => complimentaryAmount({ paymentSplits: getPlayerPaymentSplits(player) }) > (playerCosts[player.id] || 0))) {
+      alert('La bonificación no puede superar la parte de ese jugador.'); return;
+    }
     if (paymentDifferenceCents !== 0) {
       alert('La suma de los pagos debe coincidir con el total del turno. ' +
         (paymentDifferenceCents > 0 ? 'Falta: ' : 'Excedente: ') + formatCurrency(Math.abs(paymentDifferenceCents) / 100));
@@ -103,7 +108,7 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
         return {
           ...player,
           paymentSplits,
-          paymentMethod: paymentSplits[0]?.method
+          paymentMethod: paymentSplits.find(split => split.method !== 'complimentary')?.method as PaymentMethod | undefined
         };
       }),
       consumptions: formData.consumptions,
@@ -198,43 +203,10 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
     }));
   };
 
-  const calculatePlayerCosts = () => {
-    const numPlayers = formData.players.length;
-    if (numPlayers === 0) return {};
-
-    const playerCosts: { [playerId: string]: number } = {};
-    
-    // Court cost divided equally
-    const courtCostPerPlayer = courtCost / numPlayers;
-    formData.players.forEach(player => {
-      playerCosts[player.id] = courtCostPerPlayer;
-    });
-
-    // Add consumption costs
-    formData.consumptions.forEach(consumption => {
-      const totalConsumptionCost = consumption.price * consumption.quantity;
-      
-      if (consumption.splitBetweenPlayers) {
-        const costPerPlayer = totalConsumptionCost / numPlayers;
-        formData.players.forEach(player => {
-          playerCosts[player.id] += costPerPlayer;
-        });
-      } else if (consumption.assignedToPlayers && consumption.assignedToPlayers.length > 0) {
-        const costPerPlayer = totalConsumptionCost / consumption.assignedToPlayers.length;
-        consumption.assignedToPlayers.forEach(playerId => {
-          if (playerCosts[playerId] !== undefined) {
-            playerCosts[playerId] += costPerPlayer;
-          }
-        });
-      }
-    });
-
-    return playerCosts;
-  };
-
-  const playerCosts = calculatePlayerCosts();
-  const getPlayerPaymentSplits = (player: Player) => {
-    if (player.paymentSplits && player.paymentSplits.length > 0) {
+  const costsByPlayer = bookingCostBreakdown({ ...booking, players: formData.players, consumptions: formData.consumptions, totalPrice: courtCost, finalTotal });
+  const playerCosts = Object.fromEntries(Object.entries(costsByPlayer).map(([id, costs]) => [id, costs.total]));
+  const getPlayerPaymentSplits = (player: Player): PaymentSplit[] => {
+    if (player.paymentSplits != null) {
       return player.paymentSplits.map(split => ({ ...split, amount: Number(split.amount.toFixed(2)) }));
     }
 
@@ -244,13 +216,15 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
   };
 
   const getPlayerPaymentTotal = (player: Player) =>
-    getPlayerPaymentSplits(player).reduce((total, split) => total + (Number(split.amount) || 0), 0);
+    getPlayerPaymentSplits(player).filter(split => split.method !== 'complimentary').reduce((total, split) => total + (Number(split.amount) || 0), 0);
 
   const totalPaymentsCents = formData.players.reduce((sum, player) =>
     sum + getPlayerPaymentSplits(player).reduce((subtotal, split) => subtotal + Math.round(split.amount * 100), 0), 0);
   const paymentDifferenceCents = Math.round(finalTotal * 100) - totalPaymentsCents;
+  const totalComplimentary = formData.players.reduce((sum, player) => sum + complimentaryAmount(player), 0);
+  const totalToCollect = Math.round((finalTotal - totalComplimentary) * 100) / 100;
 
-  const updatePlayerPaymentSplit = (playerId: string, index: number, field: 'method' | 'amount', value: PaymentMethod | number) => {
+  const updatePlayerPaymentSplit = (playerId: string, index: number, field: 'method' | 'amount' | 'reason', value: PaymentSplit['method'] | number | string) => {
     setFormData(prev => ({
       ...prev,
       players: prev.players.map(player => {
@@ -263,7 +237,7 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
         return {
           ...player,
           paymentSplits,
-          paymentMethod: paymentSplits.find(split => split.amount > 0)?.method || paymentSplits[0]?.method
+          paymentMethod: paymentSplits.find(split => split.amount > 0 && split.method !== 'complimentary')?.method as PaymentMethod | undefined
         };
       })
     }));
@@ -294,13 +268,21 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
         return {
           ...player,
           paymentSplits: normalizedSplits,
-          paymentMethod: normalizedSplits.find(split => split.amount > 0)?.method || normalizedSplits[0].method
+          paymentMethod: normalizedSplits.find(split => split.amount > 0 && split.method !== 'complimentary')?.method as PaymentMethod | undefined
         };
       })
     }));
   };
 
-  const getPaymentMethodLabel = (method: PaymentMethod) =>
+  const applyComplimentary = (playerId: string, scope: 'court' | 'consumptions') => {
+    setFormData(previous => ({ ...previous, players: previous.players.map(player => {
+      if (player.id !== playerId) return player;
+      const paymentSplits = toggleComplimentary(player, scope, costsByPlayer[player.id]?.[scope] || 0, playerCosts[player.id] || 0);
+      return { ...player, paymentSplits, paymentMethod: paymentSplits.find(split => split.method !== 'complimentary')?.method as PaymentMethod | undefined };
+    }) }));
+  };
+
+  const getPaymentMethodLabel = (method: PaymentSplit['method']) =>
     paymentMethods.find(paymentMethod => paymentMethod.value === method)?.label || method;
 
   return (
@@ -407,7 +389,7 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
                                 <select
                                   aria-label={'Método de pago de ' + player.name}
                                   value={split.method}
-                                  onChange={(e) => updatePlayerPaymentSplit(player.id, index, 'method', e.target.value as PaymentMethod)}
+                                  onChange={(e) => updatePlayerPaymentSplit(player.id, index, 'method', e.target.value as PaymentSplit['method'])}
                                   className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
                                 >
                                   {paymentMethods.map(paymentMethod => (
@@ -439,6 +421,10 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
                               <Plus className="w-3 h-3" />
                               <span>Agregar pago</span>
                             </button>
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              <button type="button" onClick={() => applyComplimentary(player.id, 'court')} className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900">{player.paymentSplits?.some(split => split.method === 'complimentary' && split.complimentaryFor === 'court') ? 'Quitar bonificación de cancha' : 'Bonificar cancha'}</button>
+                              <button type="button" disabled={!costsByPlayer[player.id]?.consumptions} onClick={() => applyComplimentary(player.id, 'consumptions')} className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900 disabled:opacity-40">{player.paymentSplits?.some(split => split.method === 'complimentary' && split.complimentaryFor === 'consumptions') ? 'Quitar bonificación de consumibles' : 'Bonificar consumibles'}</button>
+                            </div>
                           </div>
                         </td>
                         <td className="px-3 py-3 align-top text-right whitespace-nowrap">
@@ -599,16 +585,17 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
                   </div>
                 )}
                 <div className="flex items-center justify-between text-lg font-bold text-green-600 border-t pt-2">
-                  <span>Total Final:</span>
-                  <span>{formatCurrency(finalTotal)}</span>
+                  <span>Total a cobrar:</span>
+                  <span>{formatCurrency(totalToCollect)}</span>
                 </div>
               </div>
               
+              {totalComplimentary > 0 && <div className="mb-4 flex justify-between rounded-lg bg-amber-50 p-3 text-amber-900"><span>Bonificado (sin ingreso ni deuda):</span><strong>{formatCurrency(totalComplimentary)}</strong></div>}
               <div className="space-y-2 mb-4 border-t pt-3" aria-live="polite">
                 <p className="text-sm text-gray-600">Cada jugador puede aportar un importe diferente. La suma debe cubrir el total del turno.</p>
                 <div className="flex justify-between font-medium">
                   <span>Total de pagos:</span>
-                  <span>{formatCurrency(totalPaymentsCents / 100)}</span>
+                  <span>{formatCurrency((totalPaymentsCents / 100) - totalComplimentary)}</span>
                 </div>
                 <div className={paymentDifferenceCents === 0 ? 'text-green-700 font-medium' : 'text-orange-700 font-medium'}>
                   {paymentDifferenceCents === 0

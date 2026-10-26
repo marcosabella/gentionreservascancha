@@ -2,6 +2,7 @@ import React from 'react';
 import { Booking } from '../types';
 import { calculatePlayerCost, formatCurrency, formatDate } from '../utils/timeSlots';
 import { playerPaymentAmount } from '../utils/bookingPayments';
+import { bookingNetTotal, bookingComplimentaryTotal } from '../utils/bookingComplimentary';
 
 interface BookingDetailContentProps {
   booking: Booking;
@@ -17,6 +18,7 @@ const BookingDetailContent: React.FC<BookingDetailContentProps> = ({ booking, ge
       case 'card': return 'Tarjeta';
       case 'transfer': return 'Transferencia';
       case 'current_account': return 'Cuenta Corriente';
+      case 'complimentary': return 'Bonificado';
       default: return 'Sin metodo';
     }
   };
@@ -69,7 +71,7 @@ const BookingDetailContent: React.FC<BookingDetailContentProps> = ({ booking, ge
                   {player.isOrganizer && <span className="block text-xs font-normal text-blue-700">Organizador</span>}
                 </span>
                 <span>{player.phone || 'Sin teléfono'}</span>
-                <span>{getPlayerPaymentLabel(player)}</span>
+                <span>{getPlayerPaymentLabel(player)}{player.paymentSplits?.filter(split => split.method === 'complimentary').map((split, index) => <span key={index} className="block text-xs text-amber-800">{split.complimentaryFor === 'court' ? 'Cancha' : split.complimentaryFor === 'consumptions' ? 'Consumibles' : 'Bonificación'}: {split.reason}</span>)}</span>
                 <span className="text-right font-medium">
                   {booking.status === 'completed' ? formatCurrency(playerPaymentAmount(player, playerCosts[player.id] || 0)) : '-'}
                 </span>
@@ -96,7 +98,8 @@ const BookingDetailContent: React.FC<BookingDetailContentProps> = ({ booking, ge
       </div>
 
       <div className="border-t border-blue-200 pt-3 text-right text-base font-bold text-gray-900">
-        Total: {formatCurrency(booking.finalTotal || booking.totalPrice)}
+        {bookingComplimentaryTotal(booking) > 0 && <p className="text-sm font-medium text-amber-800">Bonificado: {formatCurrency(bookingComplimentaryTotal(booking))}</p>}
+        Total a cobrar: {formatCurrency(bookingNetTotal(booking))}
       </div>
     </div>
   );

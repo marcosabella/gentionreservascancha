@@ -5,6 +5,8 @@ import { Sale, Booking } from '../types';
 import { formatCurrency, formatDate } from '../utils/timeSlots';
 import { getSalePaymentTotals, isSaleInPeriod, matchesSalePayment, salesPaymentMethods, summarizeSales } from '../utils/salesReport';
 import type { SalesPaymentFilter } from '../utils/salesReport';
+import { bookingNetTotal, bookingComplimentaryTotal } from '../utils/bookingComplimentary';
+import { saleNetTotal, saleComplimentaryTotal } from '../utils/saleDistribution';
 
 interface SalesListProps {
   sales: Sale[];
@@ -66,9 +68,9 @@ const SalesList: React.FC<SalesListProps> = ({
       quantity: consumption.quantity,
       subtotal: consumption.price * consumption.quantity
     })),
-    totalAmount: booking.finalTotal || 0,
+    totalAmount: bookingNetTotal(booking),
     paymentMethod: 'cash' as const, // Payment totals below use each player's actual payments.
-    notes: `Turno en ${booking.courtName}`,
+    notes: `Turno en ${booking.courtName}` + (bookingComplimentaryTotal(booking) > 0 ? ` · Bonificado: ${formatCurrency(bookingComplimentaryTotal(booking))}` : ''),
     createdAt: booking.closedAt || booking.createdAt,
     bookingId: booking.id,
     courtName: booking.courtName,
@@ -84,10 +86,11 @@ const SalesList: React.FC<SalesListProps> = ({
 
   const filteredSales = allSales.filter(sale => {
     const matchesSearch = sale.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         sale.distribution?.participants.some(person => person.name.toLowerCase().includes(searchTerm.toLowerCase()) || person.phone?.includes(searchTerm)) ||
                          sale.customer.phone?.includes(searchTerm) ||
                          (sale.courtName && sale.courtName.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesType = filterType === 'all' || sale.customerType === filterType;
+    const matchesType = filterType === 'all' || (sale.distribution ? sale.distribution.participants.some(person => person.registered === (filterType === 'registered')) : sale.customerType === filterType);
     const matchesDate = !invalidPeriod && isSaleInPeriod(sale.date, dateFrom, dateTo);
     
     return matchesSearch && matchesType && matchesDate && matchesSalePayment(sale, paymentFilter);
@@ -238,7 +241,7 @@ const SalesList: React.FC<SalesListProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{sale.customer.name}</div>
+                      <div className="text-sm font-medium text-gray-900">{sale.distribution ? sale.distribution.participants.map(person => person.name).join(', ') : sale.customer.name}</div>
                       {sale.customer.phone && (
                         <div className="text-sm text-gray-500">{sale.customer.phone}</div>
                       )}
@@ -256,7 +259,8 @@ const SalesList: React.FC<SalesListProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-lg font-bold text-green-600">
-                      {formatCurrency(sale.totalAmount)}
+                      {formatCurrency(saleNetTotal(sale))}
+                      {saleComplimentaryTotal(sale) > 0 && <span className="block text-xs font-normal text-amber-800">Bonificado: {formatCurrency(saleComplimentaryTotal(sale))}</span>}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
