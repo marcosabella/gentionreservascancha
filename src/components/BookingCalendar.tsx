@@ -240,7 +240,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
         {generateTimeSlots(bookings, recurringBookings, courtUnavailabilities, court.id, selectedDate, court.startTime, court.endTime).map(slot => {
           const booking = bookings.find(b => b.id === slot.bookingId);
           const unavailability = courtUnavailabilities.find(item => item.id === slot.unavailableId);
-          const bookingOwner = booking?.players[0];
+          const bookingOwner = booking?.players.find(player => player.isOrganizer) || booking?.players[0];
           const isCompletedBooking = booking?.status === 'completed';
           const canShowBookingOwner =
             !isPlayerRole || bookingOwner?.id === currentPlayerProfile?.id;
@@ -264,7 +264,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
             hasBooking: !!booking,
             hasUnavailability: !!unavailability,
             hasRecurring: !!recurringBooking,
-            bookingPlayer: booking?.players[0]?.name,
+            bookingPlayer: bookingOwner?.name,
             recurringPlayer: recurringBooking?.playerName
           });
           

@@ -15,7 +15,7 @@ export function bookingFromRow(row: BookingRow): Booking {
     status: row.status as Booking['status'], isRecurring: row.is_recurring,
     recurringBookingId: row.recurring_booking_id ?? undefined,
     closedAt: row.closed_at ?? undefined, createdAt: row.created_at,
-    players: (row.booking_players ?? []).map(player => ({
+    players: [...(row.booking_players ?? [])].sort((a, b) => Number(b.is_organizer) - Number(a.is_organizer)).map(player => ({
       id: player.player_id, name: player.player_name, email: player.player_email,
       phone: player.player_phone, isOrganizer: player.is_organizer,
       paymentMethod: player.payment_method as PaymentMethod | undefined,

@@ -160,7 +160,7 @@ export const useSupabaseData = (user: AuthUser | null = null) => {
         recurringBookingId: booking.recurring_booking_id,
         closedAt: booking.closed_at,
         createdAt: booking.created_at,
-        players: (booking.booking_players || []).map((bp: any) => ({
+        players: [...(booking.booking_players || [])].sort((a, b) => Number(b.is_organizer) - Number(a.is_organizer)).map((bp: any) => ({
           id: bp.player_id,
           name: bp.player_name,
           email: bp.player_email,
