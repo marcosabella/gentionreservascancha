@@ -11,7 +11,7 @@ export const employeeModules = [
   { id: 'cash', label: 'Caja', actions: [['view', 'Ver caja y movimientos'], ['open', 'Abrir caja'], ['move', 'Registrar ingresos, gastos y retiros'], ['adjust', 'Anular movimientos manuales'], ['close', 'Arqueo y cierre'], ['edit', 'Modificar apertura y observaciones'], ['delete', 'Eliminar cajas'], ['reopen', 'Reabrir o restaurar cajas'], ['report', 'Consultar historial, auditoría y exportar reportes']] },
   { id: 'tournaments', label: 'Torneos', actions: [['view', 'Consultar torneos'], ['manage', 'Crear y administrar parejas, zonas y resultados'], ['delete', 'Eliminar torneos']] },
   { id: 'courts', label: 'Canchas y horarios', actions: [['view', 'Consultar'], ['create', 'Crear canchas'], ['edit', 'Modificar canchas, precios y horarios'], ['delete', 'Eliminar canchas']] },
-  { id: 'products', label: 'Productos y precios', actions: [['view', 'Consultar productos'], ['create', 'Crear productos'], ['edit', 'Modificar productos y precios'], ['delete', 'Eliminar productos'], ['categories', 'Administrar categorías']] },
+  { id: 'products', label: 'Productos y precios', actions: [['view', 'Consultar productos'], ['create', 'Crear productos'], ['edit', 'Modificar productos y precios'], ['stock', 'Administrar stock, entradas y ajustes'], ['delete', 'Eliminar productos'], ['categories', 'Administrar categorías']] },
 ] as const;
 
 export type Permission = `${typeof employeeModules[number]['id']}.${string}`;

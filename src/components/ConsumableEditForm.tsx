@@ -1,5 +1,6 @@
-import { ActionButton } from '../config/AccessContext';
-import React, { useState } from 'react';
+import { ActionButton, AccessContext } from '../config/AccessContext';
+import { hasPermission } from '../config/permissions';
+import React, { useContext, useState } from 'react';
 import { Save, X, Package, Utensils, Coffee, Tag, Dumbbell, Gamepad2, Shirt, Zap, Droplets, Apple, Sandwich, Pizza, Cookie, Wine, Beer, Gift, Wrench, Shield, Heart, Settings } from 'lucide-react';
 import { ConsumableItem, ConsumableCategory } from '../types';
 import { formatCurrency } from '../utils/timeSlots';
@@ -9,7 +10,7 @@ import CategoryManagementModal from './CategoryManagementModal';
 interface ConsumableEditFormProps {
   consumable?: ConsumableItem;
   categories: ConsumableCategory[];
-  onSave: (consumable: Omit<ConsumableItem, 'id'> & { id?: string }) => void;
+  onSave: (consumable: Omit<ConsumableItem, 'id'> & { id?: string }) => void | Promise<void>;
   onCategoriesUpdate: (categories: ConsumableCategory[]) => void;
   onCancel: () => void;
 }
@@ -21,13 +22,20 @@ const ConsumableEditForm: React.FC<ConsumableEditFormProps> = ({
   onCategoriesUpdate, 
   onCancel 
 }) => {
+  const user = useContext(AccessContext);
+  const canManageStock = hasPermission(user, 'products.stock');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     name: consumable?.name || '',
     description: consumable?.description || '',
     price: consumable?.price || 0,
     category: consumable?.category || 'other',
     available: consumable?.available ?? true,
-    icon: consumable?.icon || 'Package'
+    icon: consumable?.icon || 'Package',
+    stockEnabled: consumable?.stockEnabled ?? false,
+    stockMinimum: consumable?.stockMinimum ?? 0,
+    initialStock: ''
   });
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
 
@@ -53,22 +61,26 @@ const ConsumableEditForm: React.FC<ConsumableEditFormProps> = ({
     { name: 'Heart', icon: Heart, label: 'Saludable' }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     
     const consumableData = {
       ...formData,
+      initialStock: formData.stockEnabled && !consumable?.stockEnabled ? Number(formData.initialStock) : undefined,
       id: consumable?.id
     };
     
-    onSave(consumableData);
+    try { setSaving(true); setError(''); await onSave(consumableData); }
+    catch (err) { setError(err instanceof Error ? err.message : String((err as { message?: string })?.message || 'No se pudo guardar el producto')); }
+    finally { setSaving(false); }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'number' ? Number(value) : 
+      [name]: name === 'initialStock' ? value : type === 'number' ? Number(value) :
                type === 'checkbox' ? (e.target as HTMLInputElement).checked : 
                value
     }));
@@ -250,6 +262,29 @@ const ConsumableEditForm: React.FC<ConsumableEditFormProps> = ({
               )}
             </div>
 
+            <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Controlar stock
+                <select name="stockEnabled" value={String(formData.stockEnabled)} disabled={!canManageStock || saving}
+                  onChange={e => setFormData(prev => ({ ...prev, stockEnabled: e.target.value === 'true' }))}
+                  className="mt-1 block w-full rounded-lg border border-gray-300 p-3">
+                  <option value="false">NO — vender sin control de existencias</option>
+                  <option value="true">SÍ — controlar existencias</option>
+                </select>
+              </label>
+              <p className="text-xs text-gray-500">El control comienza al activarlo. Las ventas anteriores no descuentan el conteo inicial.</p>
+              {formData.stockEnabled && <>
+                {!consumable?.stockEnabled ? <label className="block text-sm text-gray-700">Conteo inicial de unidades
+                  <input type="number" name="initialStock" required min="0" step="1" value={formData.initialStock} onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 p-3" />
+                </label> : <p className="text-sm">Stock actual: <strong>{consumable.stockQuantity ?? 0}</strong> unidades. Usá «Stock» para registrar entradas o ajustes.</p>}
+                <label className="block text-sm text-gray-700">Stock mínimo para alertas
+                  <input type="number" name="stockMinimum" required min="0" step="1" disabled={!canManageStock} value={formData.stockMinimum} onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 p-3" />
+                </label>
+              </>}
+            </div>
+            {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             {/* Available */}
             <div>
               <label className="flex items-center space-x-3">
@@ -293,6 +328,7 @@ const ConsumableEditForm: React.FC<ConsumableEditFormProps> = ({
             )}
 
             {/* Submit Buttons */}
+            {saving && <p role="status" className="text-sm text-gray-600">Guardando producto…</p>}
             <div className="flex space-x-3 pt-4">
               <button
                 type="button"
@@ -303,6 +339,7 @@ const ConsumableEditForm: React.FC<ConsumableEditFormProps> = ({
               </button>
               <button
                 type="submit"
+                disabled={saving}
                 className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
               >
                 <Save className="w-5 h-5" />

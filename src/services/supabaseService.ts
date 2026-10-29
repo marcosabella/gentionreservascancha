@@ -409,6 +409,11 @@ export const bookingsService = {
       if (error) throw error;
       return data as string;
     }
+    if (profile?.role === 'admin') {
+      const { data, error } = await supabase.rpc('inventory_create_booking', { payload: booking });
+      if (error) throw error;
+      return data as string;
+    }
     const { data: bookingData, error: bookingError } = await supabase
       .from('bookings')
       .insert({

@@ -67,6 +67,22 @@ export interface ConsumableItem {
   description: string;
   available: boolean;
   icon?: string;
+  stockEnabled?: boolean;
+  stockQuantity?: number;
+  stockMinimum?: number;
+  initialStock?: number;
+}
+
+export interface StockMovement {
+  id: string;
+  created_at: string;
+  kind: string;
+  quantity: number;
+  balance: number;
+  reason: string;
+  actor_name: string;
+  source_kind: string | null;
+  source_id: string | null;
 }
 
 export interface ConsumableCategory {

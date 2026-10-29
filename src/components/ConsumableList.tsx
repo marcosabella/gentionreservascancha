@@ -5,6 +5,7 @@ import { Booking, ConsumableItem, ConsumableCategory, Sale } from '../types';
 import { formatCurrency } from '../utils/timeSlots';
 import { getCategoryColor } from '../data/categories';
 import CategoryManagementModal from './CategoryManagementModal';
+import StockModal from './StockModal';
 
 interface ConsumableListProps {
   consumables: ConsumableItem[];
@@ -15,6 +16,7 @@ interface ConsumableListProps {
   onDeleteConsumable: (consumableId: string) => void;
   onAddConsumable: () => void;
   onCategoriesUpdate?: (categories: ConsumableCategory[]) => void;
+  onStockChanged: () => Promise<void>;
 }
 
 const iconMap = {
@@ -31,10 +33,13 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
   onEditConsumable, 
   onDeleteConsumable, 
   onAddConsumable,
-  onCategoriesUpdate
+  onCategoriesUpdate,
+  onStockChanged
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCategories, setShowCategories] = useState(false);
+  const [stockProductId, setStockProductId] = useState<string | null>(null);
+  const stockProduct = consumables.find(product => product.id === stockProductId);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -239,6 +244,9 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
                   Estado
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Stock
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Cantidad vendida
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -280,11 +288,18 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-lg font-bold text-gray-900">
+                      {!consumable.stockEnabled ? <span className="text-sm text-gray-500">Sin control</span> : <span className={(consumable.stockQuantity ?? 0) === 0 ? 'text-red-700' : (consumable.stockQuantity ?? 0) <= (consumable.stockMinimum ?? 0) ? 'text-amber-700' : 'text-green-700'}>{consumable.stockQuantity ?? 0}</span>}
+                    </div>
+                    {consumable.stockEnabled && <div className="text-xs text-gray-500">{(consumable.stockQuantity ?? 0) === 0 ? 'Sin stock' : (consumable.stockQuantity ?? 0) <= (consumable.stockMinimum ?? 0) ? 'Stock bajo' : 'Disponible'} · Mínimo {consumable.stockMinimum ?? 0}</div>}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-lg font-bold text-gray-900">
                       {soldQuantityByConsumable.get(consumable.id) || 0}
                     </div>
                     <div className="text-xs text-gray-500">unidades</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                    <button onClick={() => setStockProductId(consumable.id)} className="inline-flex items-center px-2 py-1 border border-gray-300 rounded hover:bg-gray-50" title={`Stock e historial de ${consumable.name}`}><Package className="w-4 h-4 mr-1" />Stock</button>
                     <ActionButton permission="products.edit"
                       onClick={() => onEditConsumable(consumable)}
                       className="inline-flex items-center px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -334,6 +349,7 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
         </div>
       </div>
       {showCategories && onCategoriesUpdate && <CategoryManagementModal categories={categories} onSave={onCategoriesUpdate} onClose={() => setShowCategories(false)} />}
+      {stockProduct && <StockModal product={stockProduct} onClose={() => setStockProductId(null)} onChanged={onStockChanged} />}
     </div>
   );
 };

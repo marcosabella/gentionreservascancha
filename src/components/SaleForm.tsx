@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { validateStock } from '../utils/stock';
 import { Save, X, Plus, Minus, Search } from 'lucide-react';
 import { Sale, SaleItem, SaleParticipant, SaleDistribution, ConsumableItem, PlayerProfile, ConsumableCategory } from '../types';
 import { addSaleParticipant, getSaleShares, isFinalConsumer, saleParticipantAmounts, validateSaleDistribution } from '../utils/saleDistribution';
@@ -81,6 +82,8 @@ const SaleForm: React.FC<SaleFormProps> = ({
     e.preventDefault();
 
     if (isSaving) return;
+    const stockError = validateStock(consumables, formData.items, sale?.items);
+    if (stockError) { alert(stockError); return; }
     
     if (formData.items.length === 0) {
       alert('Debe agregar al menos un producto');

@@ -163,6 +163,7 @@ const ConsumableSearchPopup: React.FC<ConsumableSearchPopupProps> = ({
                     <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-green-700 transition-colors">
                       {consumable.name}
                     </h3>
+                    {consumable.stockEnabled && <p className={`text-xs mb-2 ${(consumable.stockQuantity ?? 0) === 0 ? 'text-red-700' : 'text-gray-600'}`}>Stock: {consumable.stockQuantity ?? 0} unidades{(consumable.stockQuantity ?? 0) === 0 ? ' · Sin stock' : ''}</p>}
                     
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                       {consumable.description}

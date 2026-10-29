@@ -49,6 +49,17 @@ export const useSupabaseData = (user: AuthUser | null = null) => {
     setScheduleSettings(defaultScheduleSettings);
   }, []);
 
+  // Refresh inventory without unmounting an open stock or sales form.
+  const refreshStock = useCallback(async () => {
+    if (!enabled || !isSupabaseConfigured || !canReadEmployeeTable(user, 'consumables')) return;
+    const { data, error: stockError } = await supabase.from('consumables').select('*').order('name');
+    if (stockError) throw stockError;
+    setConsumables((data || []).map((product: any) => ({ id: product.id, name: product.name,
+      description: product.description, price: product.price, category: product.category,
+      available: product.available, icon: product.icon, stockEnabled: product.stock_enabled ?? false,
+      stockQuantity: product.stock_quantity ?? 0, stockMinimum: product.stock_minimum ?? 0 })));
+  }, [enabled, user?.id, user?.role, permissionKey]);
+
   const loadData = useCallback(async () => {
     if (!enabled || !isSupabaseConfigured || !supabase) {
       setLoading(false);
@@ -132,7 +143,10 @@ export const useSupabaseData = (user: AuthUser | null = null) => {
         price: consumable.price,
         category: consumable.category,
         available: consumable.available,
-        icon: consumable.icon
+        icon: consumable.icon,
+        stockEnabled: consumable.stock_enabled ?? false,
+        stockQuantity: consumable.stock_quantity ?? 0,
+        stockMinimum: consumable.stock_minimum ?? 0
       })));
 
       const { data: bookingsData, error: bookingsError } = canReadEmployeeTable(user, 'bookings') ? await supabase
@@ -334,6 +348,15 @@ export const useSupabaseData = (user: AuthUser | null = null) => {
     }
   }, [enabled, loadData, resetData]);
 
+  useEffect(() => {
+    if (!enabled || !isSupabaseConfigured || !canReadEmployeeTable(user, 'consumables')) return;
+    const update = () => { refreshStock().catch(err => console.error('No se pudo actualizar el stock:', err)); };
+    // Focus and a light periodic refresh also work when Realtime is unavailable.
+    window.addEventListener('focus', update);
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') update(); }, 30000);
+    return () => { window.removeEventListener('focus', update); window.clearInterval(timer); };
+  }, [enabled, refreshStock]);
+
   return {
     courts,
     players,
@@ -349,6 +372,7 @@ export const useSupabaseData = (user: AuthUser | null = null) => {
     loading,
     error,
     refetch: loadData,
+    refreshStock,
     setCourts,
     setPlayers,
     setCategories,

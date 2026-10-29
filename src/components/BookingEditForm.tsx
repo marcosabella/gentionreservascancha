@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { validateStock } from '../utils/stock';
 import { Save, X, Plus, Minus, ShoppingCart, Users, Calendar, Clock, Search } from 'lucide-react';
 import { Booking, Consumption, ConsumableItem, ConsumableCategory, Court, Player, PlayerProfile, PaymentSplit } from '../types';
 import { formatCurrency, formatDate } from '../utils/timeSlots';
@@ -83,6 +84,8 @@ const BookingEditForm: React.FC<BookingEditFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const stockError = validateStock(consumables, formData.consumptions, booking.consumptions);
+    if (stockError) { alert(stockError); return; }
 
     if (formData.players.length === 0) {
       alert('Debe mantener al menos el jugador organizador');

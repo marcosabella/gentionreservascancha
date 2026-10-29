@@ -72,6 +72,7 @@ import {
   currentAccountService 
 } from './services/supabaseService';
 import { calculatePlayerCost } from './utils/timeSlots';
+import { stockService } from './services/stockService';
 
 const operationError = (error: unknown, fallback: string) => error && typeof error === 'object' && 'message' in error ? String(error.message) : fallback;
 
@@ -97,6 +98,7 @@ function App() {
     loading: dataLoading,
     error: dataError,
     refetch: refetchData,
+    refreshStock,
     setCourts: setDbCourts,
     setPlayers: setDbPlayers,
     setCategories: setDbCategories,
@@ -605,49 +607,16 @@ function App() {
     if (!allowEmployee(consumableData.id ? 'products.edit' : 'products.create')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
-        try {
-          if (consumableData.id) {
-            const updatedConsumable = await consumablesService.update(consumableData.id, consumableData);
-            setDbConsumables(prev => prev.map(consumable => consumable.id === consumableData.id ? updatedConsumable : consumable));
-          } else {
-            const newConsumable = await consumablesService.create(consumableData);
-            setDbConsumables(prev => [...prev, newConsumable]);
-          }
-        } catch (supabaseError: any) {
-          // If it's an RLS error, fall back to local data
-          if (supabaseError.code === '42501') {
-            console.log('RLS error detected, falling back to local data');
-            if (consumableData.id) {
-              setLocalConsumables(prev => prev.map(consumable => 
-                consumable.id === consumableData.id 
-                  ? { ...consumableData, id: consumableData.id }
-                  : consumable
-              ));
-            } else {
-              const newConsumable = { ...consumableData, id: Date.now().toString() };
-              setLocalConsumables(prev => [...prev, newConsumable]);
-            }
-          } else {
-            throw supabaseError;
-          }
-        }
+        const saved = await stockService.saveProduct(consumableData);
+        setDbConsumables(prev => consumableData.id ? prev.map(product => product.id === saved.id ? saved : product) : [...prev, saved]);
       } else {
-        if (consumableData.id) {
-          setLocalConsumables(prev => prev.map(consumable => 
-            consumable.id === consumableData.id 
-              ? { ...consumableData, id: consumableData.id }
-              : consumable
-          ));
-        } else {
-          const newConsumable = { ...consumableData, id: Date.now().toString() };
-          setLocalConsumables(prev => [...prev, newConsumable]);
-        }
+        throw new Error('Esperá a que se conecte el sistema para guardar el producto');
       }
       setShowConsumableForm(false);
       setEditingConsumable(null);
     } catch (error) {
       console.error('Error saving consumable:', error);
-      alert('Error al guardar el consumible');
+      throw new Error(operationError(error, 'Error al guardar el producto'));
     }
   };
 
@@ -790,10 +759,14 @@ function App() {
     if (!allowEmployee('bookings.cancel')) { alert('No tenés permiso para realizar esta acción'); return; }
     try {
       if (isSupabaseDataReady) {
-        await bookingsService.update(bookingId, { status: 'cancelled' });
+        const booking = currentBookings.find(item => item.id === bookingId);
+        const controlled = booking?.consumptions.some(item => currentConsumables.some(product => product.stockEnabled && product.id === item.consumableId));
+        const returnStock = !!controlled && confirm('¿Los productos de esta reserva volvieron físicamente al stock?\nAceptar: reponer las unidades descontadas.\nCancelar: cancelar la reserva sin reponer productos consumidos.');
+        await stockService.cancel('bookings', bookingId, returnStock);
         setDbBookings(prev => prev.map(booking => 
           booking.id === bookingId ? { ...booking, status: 'cancelled' } : booking
         ));
+        await refetchData();
       } else {
         setLocalBookings(prev => prev.map(booking => 
           booking.id === bookingId ? { ...booking, status: 'cancelled' } : booking
@@ -891,6 +864,7 @@ function App() {
     try {
       if (isSupabaseDataReady) {
         await bookingsService.update(updatedBooking.id, updatedBooking);
+        await refreshStock();
         setDbBookings(prev => prev.map(booking => 
           booking.id === updatedBooking.id ? updatedBooking : booking
         ));
@@ -924,6 +898,7 @@ function App() {
     try {
       if (isSupabaseDataReady) {
         await bookingsService.update(updatedBooking.id, updatedBooking);
+        await refreshStock();
         setDbBookings(prev => prev.map(booking => 
           booking.id === updatedBooking.id ? updatedBooking : booking
         ));
@@ -1386,6 +1361,7 @@ function App() {
           await syncSaleCurrentAccountEntry(newSale.id, false);
         }
       }
+      if (isSupabaseDataReady) await refreshStock();
       setShowSaleForm(false);
       setEditingSale(null);
     } catch (error) {
@@ -1406,7 +1382,7 @@ function App() {
     
     // Find the sale to check if it has related current account entries
     const sale = currentSales.find(s => s.id === saleId);
-    if (!isEmployee() && sale && !sale.distribution && sale.paymentMethod === 'current_account') {
+    if (!isSupabaseDataReady && !isEmployee() && sale && !sale.distribution && sale.paymentMethod === 'current_account') {
       // Find and delete related current account entry
       const relatedEntry = currentCurrentAccountEntries.find(entry => 
         entry.relatedSaleId === saleId
@@ -1425,9 +1401,11 @@ function App() {
 
     try {
       if (isSupabaseDataReady) {
-        await salesService.delete(saleId);
+        const controlled = sale?.items.some(item => currentConsumables.some(product => product.id === item.consumableId && product.stockEnabled));
+        const returnStock = !!controlled && confirm('¿La mercadería de esta venta volvió físicamente al stock?\nAceptar: reponer las unidades descontadas.\nCancelar: eliminar la venta sin reponer productos consumidos.');
+        await stockService.cancel('sales', saleId, returnStock);
         setDbSales(prev => prev.filter(sale => sale.id !== saleId));
-        if (isEmployee() || sale?.distribution) await refetchData();
+        await refetchData();
       } else {
         setLocalSales(prev => prev.filter(sale => sale.id !== saleId));
         if (sale?.distribution) setLocalCurrentAccountEntries(previous => previous.filter(entry => entry.relatedSaleId !== saleId));
@@ -1700,6 +1678,7 @@ function App() {
                 setShowConsumableForm(true);
               }}
               onDeleteConsumable={handleConsumableDelete}
+              onStockChanged={refreshStock}
               onAddConsumable={() => setShowConsumableForm(true)}
               onCategoriesUpdate={handleCategoriesUpdate}
             />

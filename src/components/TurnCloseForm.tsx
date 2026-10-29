@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { validateStock } from '../utils/stock';
 import { Save, X, Plus, Minus, Users, ShoppingCart, Calculator, Search } from 'lucide-react';
 import { Booking, Player, Consumption, ConsumableItem, PlayerProfile, ConsumableCategory, Court, PaymentMethod, PaymentSplit } from '../types';
 import { bookingCostBreakdown, complimentaryAmount, toggleComplimentary } from '../utils/bookingComplimentary';
@@ -78,6 +79,8 @@ const TurnCloseForm: React.FC<TurnCloseFormProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const stockError = validateStock(consumables, formData.consumptions, booking.consumptions);
+    if (stockError) { alert(stockError); return; }
     if (isSaving) return;
     
     if (formData.players.length === 0) {
