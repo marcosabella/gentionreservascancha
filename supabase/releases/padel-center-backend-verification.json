@@ -1,36 +1,36 @@
 {
   "project": "zcixnnzxxkylotbjudhk",
-  "migrationsVerified": 20,
+  "migrationsVerified": 28,
   "newMigrationContentsMatch": true,
   "security": {
     "active_players": 52,
     "anonymous_grants": 0,
-    "cash_movements": 19,
-    "cash_sessions": 3,
-    "enabled_players": 317,
+    "cash_movements": 59,
+    "cash_sessions": 8,
+    "enabled_players": 321,
     "exposed_definers": 0,
     "hash_exposed": false,
     "permissions_editable": false,
     "role_editable": false
   },
   "admin": {
-    "booking_rows": 506,
-    "cash_rows": 3,
+    "booking_rows": 525,
+    "cash_rows": 8,
     "check_role": "admin",
     "court_rows": 1,
     "may_open_cash": true,
-    "player_rows": 317
+    "player_rows": 321
   },
   "player": {
-    "booking_rows": 506,
+    "booking_rows": 525,
     "cash_rows": 0,
     "check_role": "player",
     "court_rows": 1,
     "may_open_cash": false,
-    "player_rows": 317
+    "player_rows": 321
   },
   "anonymousDataBlocked": true,
   "administrativeFunctionsProtected": 7,
   "invalidLoginRejected": true,
-  "at": "2026-10-23T16:02:27.160Z"
+  "at": "2026-10-29T10:29:18.438Z"
 }

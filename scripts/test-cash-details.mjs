@@ -59,4 +59,20 @@ assert(financedReport.includes('Cuenta Corriente'));
 assert(financedReport.includes('Salaverry'));
 assert(financedReport.includes('Sin pago'));
 assert.equal(utils.cashTotals(session, [movement]).collected, 8000, 'Informative credit does not change collection totals');
-console.log('PASS: report/CSV detail, escaping, legacy compatibility and cash totals.');
+const edits = [
+  { ...movement, method: 'transfer', amount: 6000, source_detail: ['Estado anterior'] },
+  { ...movement, method: 'transfer', amount: -6000, kind: 'correction', created_at: '2026-10-22T00:00:00Z', source_detail: ['Estado final'] },
+  { ...movement, amount: 6000, created_at: '2026-10-22T00:00:01Z', source_detail: ['Estado final'] },
+];
+assert.equal(utils.cashTotals(session, edits).expected, 6100);
+assert.equal(utils.cashTotals(session, edits).cashIn, 6000);
+assert.equal(utils.cashTotals(session, edits).cashOut, 0);
+for (const output of [utils.cashReportHtml(session, edits), utils.cashCsv(session, edits)]) {
+  assert(!output.includes('Estado anterior'));
+  assert(output.includes('Estado final'));
+  assert(!output.includes('Ajuste de cobro'));
+}
+const cashRoundTrip = [movement, { ...movement, amount: -8000 }, { ...movement, amount: 8000 }];
+assert.equal(utils.cashTotals(session, cashRoundTrip).cashIn, 8000, 'Edits do not inflate reported cash income');
+assert.equal(utils.cashTotals(session, cashRoundTrip).cashOut, 0, 'Edits do not become physical outflows');
+console.log('PASS: report/CSV final receipts, escaping, legacy compatibility and cash totals.');

@@ -84,6 +84,7 @@ function verifyBundle() {
   const bundle=collect(outputDir).filter(file=>file.endsWith('.js')).map(file=>readFileSync(file,'utf8')).join('\n');
   if(!bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project && bundle.includes(other.project)) || /127\.0\.0\.1:560|localhost:560/.test(bundle)) throw Error('Build has an incorrect database/function endpoint');
   if(!bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Build is missing the latest features');
+  if(!bundle.includes('un único resultado neto por medio de pago en esta caja'))throw Error('Build is missing consolidated final cash receipts');
   if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Build is missing player booking notifications');
   if(!bundle.includes('register_booking_push') || !bundle.includes('Activar avisos al dispositivo'))throw Error('Build is missing device push registration');
   if(!bundle.includes('Probar aviso en este dispositivo'))throw Error('Build is missing the device notification display test');
@@ -127,12 +128,13 @@ if(command==='deploy') {
   }
   const files={},uploads=new Map();
   for(const file of collect(outputDir)){const data=readFileSync(file);const hash=createHash('sha1').update(data).digest('hex');const urlPath='/'+relative(outputDir,file).replaceAll('\\','/');files[urlPath]=hash;uploads.set(hash,{path:urlPath,data});}
-  const deploy=await api(`/sites/${site.id}/deploys`,{method:'POST',body:{files,draft:false,title:`${client.brand} · Prueba de visualización de notificaciones en el dispositivo`}});
+  const title=process.env.RELEASE_TITLE?.trim() || `${client.brand} · Actualización del sistema`;
+  const deploy=await api(`/sites/${site.id}/deploys`,{method:'POST',body:{files,draft:false,title}});
   for(const hash of deploy.required??[]){const file=uploads.get(hash);if(!file)throw Error('Unknown required file');await api(`/deploys/${deploy.id}/files${file.path}`,{method:'PUT',body:file.data,contentType:'application/octet-stream'});}
   let ready;
   for(let attempt=0;attempt<30;attempt++){ready=await api(`/deploys/${deploy.id}`);if(['ready','error'].includes(ready.state))break;await new Promise(resolve=>setTimeout(resolve,1500));}
   if(ready?.state!=='ready')throw Error(`Deployment did not become ready: ${ready?.state}`);
-  const metadata={project:client.project,site:client.site,siteId:site.id,url:site.ssl_url??site.url,deployId:deploy.id,state:ready.state,at:new Date().toISOString(),workingTree:true};
+  const metadata={project:client.project,site:client.site,siteId:site.id,url:site.ssl_url??site.url,deployId:deploy.id,state:ready.state,title,at:new Date().toISOString(),workingTree:true};
   save('deployment',metadata);console.log(JSON.stringify(metadata));process.exit(0);
 }
 const url=site.ssl_url??site.url;
@@ -140,6 +142,7 @@ const response=await fetch(url+'/?release='+Date.now(),{cache:'no-store'});const
 if(!response.ok || !assetPath)throw Error('Published HTML unavailable');
 const asset=await fetch(new URL(assetPath,url));const bundle=await asset.text();
 if(!asset.ok || !bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project&&bundle.includes(other.project)) || !bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Published site failed database/feature verification');
+if(!bundle.includes('un único resultado neto por medio de pago en esta caja'))throw Error('Published site is missing consolidated final cash receipts');
 if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Published site is missing player booking notifications');
 if(!bundle.includes('register_booking_push') || !bundle.includes('Activar avisos al dispositivo'))throw Error('Published site is missing device push registration');
 if(!bundle.includes('Probar aviso en este dispositivo'))throw Error('Published site is missing the device notification display test');
@@ -163,4 +166,4 @@ if(name==='padel-center') {
   if(JSON.stringify(manifest)!==JSON.stringify(expected))throw Error('Published local update differs from this release');
   localUpdates=true;
 }
-const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,playerCredit:true,bookingNotifications:true,bookingPush:true,playerAnnouncements:true,announcementPlayerSelection:true,announcementHistory:true,separateNotificationTabs:true,playerAppInstall:true,localUpdates,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));
+const checks={url,project:client.project,html:response.status,javascript:asset.status,correctDatabase:true,currentBuild:true,cash:true,finalCashReceipts:true,playerCredit:true,bookingNotifications:true,bookingPush:true,playerAnnouncements:true,announcementPlayerSelection:true,announcementHistory:true,separateNotificationTabs:true,playerAppInstall:true,localUpdates,at:new Date().toISOString()};save('site-verification',checks);console.log(JSON.stringify(checks));

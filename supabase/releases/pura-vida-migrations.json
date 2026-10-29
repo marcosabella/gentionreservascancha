@@ -2,24 +2,24 @@
   "project": "qsvdpdifygmzdawxfyqv",
   "applied": [
     {
-      "version": "20261023200000",
-      "name": "player_announcement_history",
+      "version": "20261026090000",
+      "name": "overnight_booking_slots",
       "mode": "applied"
     }
   ],
   "beforeCounts": {
-    "accounts": 0,
-    "bookings": 0,
-    "players": 0,
-    "profiles": 1,
-    "sales": 0
+    "accounts": 15,
+    "bookings": 197,
+    "players": 101,
+    "profiles": 2,
+    "sales": 3
   },
   "afterCounts": {
-    "accounts": 0,
-    "bookings": 0,
-    "players": 0,
-    "profiles": 1,
-    "sales": 0
+    "accounts": 15,
+    "bookings": 197,
+    "players": 101,
+    "profiles": 2,
+    "sales": 3
   },
-  "at": "2026-10-23T19:05:24.172Z"
+  "at": "2026-10-29T10:28:28.656Z"
 }

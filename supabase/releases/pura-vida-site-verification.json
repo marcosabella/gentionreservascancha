@@ -6,6 +6,7 @@
   "correctDatabase": true,
   "currentBuild": true,
   "cash": true,
+  "finalCashReceipts": true,
   "playerCredit": true,
   "bookingNotifications": true,
   "bookingPush": true,
@@ -15,5 +16,5 @@
   "separateNotificationTabs": true,
   "playerAppInstall": true,
   "localUpdates": false,
-  "at": "2026-10-27T13:34:34.324Z"
+  "at": "2026-10-29T10:30:08.546Z"
 }

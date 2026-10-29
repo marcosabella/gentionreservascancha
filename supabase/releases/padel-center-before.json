@@ -6,11 +6,11 @@
   "baseline_policies": 4,
   "cash": "cash_sessions",
   "counts": {
-    "accounts": 132,
-    "bookings": 507,
-    "players": 317,
+    "accounts": 135,
+    "bookings": 525,
+    "players": 321,
     "profiles": 54,
-    "sales": 279
+    "sales": 282
   },
   "history": "supabase_migrations.schema_migrations",
   "invalid_credits": 0,
@@ -204,7 +204,27 @@
     {
       "name": "player_announcement_selection",
       "version": "20261023190000"
+    },
+    {
+      "name": "player_announcement_history",
+      "version": "20261023200000"
+    },
+    {
+      "name": "shared_direct_sales",
+      "version": "20261026120000"
+    },
+    {
+      "name": "booking_complimentary",
+      "version": "20261026150000"
+    },
+    {
+      "name": "direct_sale_complimentary",
+      "version": "20261026170000"
+    },
+    {
+      "name": "complimentary_reason_optional",
+      "version": "20261026180000"
     }
   ],
-  "at": "2026-10-23T19:05:06.288Z"
+  "at": "2026-10-29T10:28:03.073Z"
 }

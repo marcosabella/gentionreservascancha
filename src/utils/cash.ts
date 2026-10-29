@@ -11,14 +11,15 @@ export const cashDate = (value: string | null) => value ? new Date(value).toLoca
 const round = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 export function cashTotals(session: CashSession, movements: CashMovement[]) {
+  const rows = cashMovementRows(movements);
   const sum = (match: (movement: CashMovement) => boolean) => round(movements.filter(match).reduce((total, movement) => total + Number(movement.amount), 0));
   const receipts = (method: CashMovement['method']) => sum(m => m.method === method && Boolean(m.source_type));
   const manual = sum(m => m.method === 'cash' && !m.source_type);
   return {
     cash: receipts('cash'), card: receipts('card'), transfer: receipts('transfer'), manual,
     expected: round(Number(session.opening_amount) + sum(m => m.method === 'cash')),
-    cashIn: sum(m => m.method === 'cash' && m.amount > 0),
-    cashOut: -sum(m => m.method === 'cash' && m.amount < 0),
+    cashIn: round(rows.reduce((total, row) => total + Math.max(row.amounts.cash, 0), 0)),
+    cashOut: round(rows.reduce((total, row) => total - Math.min(row.amounts.cash, 0), 0)),
     collected: sum(m => Boolean(m.source_type)),
   };
 }
@@ -44,8 +45,8 @@ export function cashCsv(session: CashSession, movements: CashMovement[]) {
     ['Efectivo contado', session.counted_cash], ['Diferencia', session.difference],
     ['Fondo reservado', session.retained_cash], ['Efectivo entregado', session.handed_over],
     ['Observaciones apertura', session.opening_notes], ['Observaciones cierre', session.closing_notes], [],
-    ['Fecha', 'Responsable', 'Tipo', 'Medio', 'Jugador / Cliente', 'Concepto', 'Importe cobrado', 'Origen', 'Referencia', 'Anula movimiento', 'Detalle del origen', 'Cuenta Corriente (informativo, no sumar como cobro)'],
-    ...movements.map(m => [cashDate(m.created_at), m.actor_name, cashKindLabels[m.kind], cashMethodLabels[m.method], m.source_name, m.description, m.amount, m.source_type ? cashSourceLabels[m.source_type] : 'Manual', m.source_id, m.reversal_of, (m.source_detail ?? []).join(' | '), cashSourceDetails(m.source_detail).payments.filter(payment => payment.method === 'Cuenta corriente').reduce((sum, payment) => sum + payment.amount, 0)]),
+    ['Fecha', 'Responsable', 'Tipo', 'Jugador / Cliente', 'Concepto', 'Efectivo', 'Tarjeta', 'Transferencia', 'Importe cobrado', 'Origen', 'Referencia', 'Anula movimiento', 'Detalle del origen', 'Cuenta Corriente (informativo, no sumar como cobro)'],
+    ...cashMovementRows(movements).map(m => [cashDate(m.created_at), m.actor_name, cashKindLabels[m.kind], m.source_name, m.description, m.amounts.cash, m.amounts.card, m.amounts.transfer, round(m.amounts.cash + m.amounts.card + m.amounts.transfer), m.source_type ? cashSourceLabels[m.source_type] : 'Manual', m.source_id, m.reversal_of, (m.source_detail ?? []).join(' | '), m.currentAccount]),
   ];
   return '\uFEFF' + rows.map(row => row.map(csvCell).join(';')).join('\r\n');
 }

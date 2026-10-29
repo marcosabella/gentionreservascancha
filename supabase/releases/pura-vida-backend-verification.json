@@ -1,29 +1,29 @@
 {
   "project": "qsvdpdifygmzdawxfyqv",
-  "migrationsVerified": 20,
+  "migrationsVerified": 28,
   "newMigrationContentsMatch": true,
   "security": {
     "active_players": 0,
     "anonymous_grants": 0,
-    "cash_movements": 0,
-    "cash_sessions": 0,
-    "enabled_players": 0,
+    "cash_movements": 45,
+    "cash_sessions": 3,
+    "enabled_players": 40,
     "exposed_definers": 0,
     "hash_exposed": false,
     "permissions_editable": false,
     "role_editable": false
   },
   "admin": {
-    "booking_rows": 0,
-    "cash_rows": 0,
+    "booking_rows": 197,
+    "cash_rows": 3,
     "check_role": "admin",
-    "court_rows": 0,
+    "court_rows": 2,
     "may_open_cash": true,
-    "player_rows": 0
+    "player_rows": 101
   },
   "player": null,
   "anonymousDataBlocked": true,
   "administrativeFunctionsProtected": 6,
   "invalidLoginRejected": true,
-  "at": "2026-10-23T16:02:21.204Z"
+  "at": "2026-10-29T10:29:25.287Z"
 }
