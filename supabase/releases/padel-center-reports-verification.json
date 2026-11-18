@@ -1,0 +1,14 @@
+{
+  "client": "padel-center",
+  "project": "zcixnnzxxkylotbjudhk",
+  "anonymous_access": false,
+  "incorrect_counters": 0,
+  "inventory_rpc": "inventory_save_product(uuid,jsonb)",
+  "migrations": 2,
+  "players": 325,
+  "players_with_bookings": 199,
+  "report_rpc": "management_report_data(date,date)",
+  "bookings_in_report": 186,
+  "players_in_report": 325,
+  "at": "2026-11-18T11:18:09.039Z"
+}

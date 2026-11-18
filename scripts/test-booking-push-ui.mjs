@@ -16,7 +16,7 @@ let active = null, failRegister = false, failRemove = false, permissionCalls = 0
 const localNotices = [];
 const settings = { publicKey: (() => { const key = createECDH('prime256v1'); key.generateKeys(); return key.getPublicKey().toString('base64url'); })(), enabled: true };
 let failLocalNotice = false;
-const registration = { showNotification: async (title, options) => { if (failLocalNotice) throw Error('system blocked'); localNotices.push({title,options}); }, pushManager: {
+const registration = { scope: 'https://example.test/app/', showNotification: async (title, options) => { if (failLocalNotice) throw Error('system blocked'); localNotices.push({title,options}); }, pushManager: {
   getSubscription: async () => active,
   subscribe: async options => {
     assert.equal(options.userVisibleOnly, true); assert.equal(options.applicationServerKey.length, 65); subscribed++;
@@ -25,7 +25,7 @@ const registration = { showNotification: async (title, options) => { if (failLoc
     return active;
   },
 } };
-const context = { module: { exports: {} }, exports: {}, setTimeout, clearTimeout, Uint8Array, atob,
+const context = { module: { exports: {} }, exports: {}, setTimeout, clearTimeout, Uint8Array, atob, URL,
   window: { isSecureContext: true, PushManager: {}, Notification: {}, location: { hostname: 'example.test' } },
   navigator: { serviceWorker: { ready: Promise.resolve(registration), getRegistration: async () => registration } },
   localStorage: { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key) },
@@ -43,6 +43,8 @@ assert.equal(calls.at(-1).name, 'register_booking_push');
 const callsBeforeTest = calls.length;
 await service.testNotification();
 assert.equal(localNotices.length,1); assert.equal(localNotices[0].title,'Prueba de notificaciones');
+assert.equal(localNotices[0].options.icon, 'https://example.test/app/pwa/notification-ball.png');
+assert.equal(localNotices[0].options.badge, 'https://example.test/app/pwa/notification-ball-badge.png');
 assert(localNotices[0].options.tag.startsWith('booking-push-local-test-')); assert.equal(calls.length,callsBeforeTest,'Local display test does not send a server push or create messages');
 failLocalNotice=true; await assert.rejects(service.testNotification()); failLocalNotice=false;
 context.Notification.permission='denied'; await assert.rejects(service.testNotification());context.Notification.permission='granted';
@@ -78,7 +80,8 @@ for (const brand of ['PADEL CENTER', 'PURA VIDA']) {
   handlers.get('push')({ data: { json: () => payload }, waitUntil: promise => { done = promise; } }); await done;
   assert.equal(shown[0].options.tag, `booking-${id}`);
   assert(shown[0].options.icon.startsWith(scope));
-  assert(shown[0].options.icon.includes(brand === 'PURA VIDA' ? 'pura-vida' : 'padel-center'));
+  assert.equal(shown[0].options.icon, `${scope}pwa/notification-ball.png`);
+  assert.equal(shown[0].options.badge, `${scope}pwa/notification-ball-badge.png`);
   handlers.get('push')({ data: { json: () => { throw Error('bad'); } }, waitUntil: promise => { done = promise; } }); await done;
   assert(shown[1].options.body.includes('nuevo aviso'), 'Malformed/empty payload still displays a notification');
   const click = () => ({ notification: { data: { notificationId: id }, close: () => { closed++; } }, waitUntil: promise => { done = promise; } });

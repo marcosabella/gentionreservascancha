@@ -1,6 +1,7 @@
 export type UserRole = 'admin' | 'player' | 'employee';
 
 export const employeeModules = [
+  { id: 'reports', label: 'Reportes y estadísticas', actions: [['view', 'Consultar y exportar todos los reportes de gestión']] },
   { id: 'dashboard', label: 'Inicio', actions: [['view', 'Ver resumen de los módulos habilitados']] },
   { id: 'bookings', label: 'Reservas', actions: [['view', 'Ver calendario y reservas'], ['create', 'Crear reservas'], ['edit', 'Modificar reservas y consumos'], ['cancel', 'Cancelar reservas'], ['close', 'Cerrar turnos y registrar sus cobros']] },
   { id: 'recurring', label: 'Turnos fijos', actions: [['view', 'Consultar'], ['create', 'Crear'], ['edit', 'Modificar, activar y gestionar excepciones'], ['delete', 'Eliminar']] },
@@ -32,6 +33,7 @@ export function hasPermission(user: { role: UserRole; permissions?: readonly str
 }
 
 export const tabPermissions: Record<string, string> = {
+  reportes: 'reports.view',
   dashboard: 'dashboard.view', reservas: 'bookings.view', 'mis-reservas': 'bookings.view',
   'turnos-fijos': 'recurring.view', disponibilidad: 'availability.view', jugadores: 'players.view',
   ventas: 'sales.view', 'cuenta-corriente': 'accounts.view', torneos: 'tournaments.view',

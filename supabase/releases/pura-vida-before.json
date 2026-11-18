@@ -6,11 +6,11 @@
   "baseline_policies": 4,
   "cash": "cash_sessions",
   "counts": {
-    "accounts": 15,
-    "bookings": 197,
-    "players": 101,
+    "accounts": 67,
+    "bookings": 248,
+    "players": 198,
     "profiles": 2,
-    "sales": 3
+    "sales": 23
   },
   "history": "supabase_migrations.schema_migrations",
   "invalid_credits": 0,
@@ -110,6 +110,10 @@
       "version": "20261023200000"
     },
     {
+      "name": "overnight_booking_slots",
+      "version": "20261026090000"
+    },
+    {
       "name": "shared_direct_sales",
       "version": "20261026120000"
     },
@@ -126,5 +130,5 @@
       "version": "20261026180000"
     }
   ],
-  "at": "2026-10-29T10:28:15.229Z"
+  "at": "2026-11-17T14:35:37.316Z"
 }

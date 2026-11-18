@@ -82,6 +82,7 @@ const outputDir=resolve(`dist/${name}`);
 function collect(directory){return readdirSync(directory,{withFileTypes:true}).flatMap(entry=>entry.isDirectory()?collect(join(directory,entry.name)):[join(directory,entry.name)]);}
 function verifyBundle() {
   const bundle=collect(outputDir).filter(file=>file.endsWith('.js')).map(file=>readFileSync(file,'utf8')).join('\n');
+  if(!bundle.includes('management_report_data') || !bundle.includes('Reportes y estadísticas') || !bundle.includes('Franjas con mayor disponibilidad'))throw Error('Build is missing the management reports module');
   if(!bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project && bundle.includes(other.project)) || /127\.0\.0\.1:560|localhost:560/.test(bundle)) throw Error('Build has an incorrect database/function endpoint');
   if(!bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Build is missing the latest features');
   if(!bundle.includes('un único resultado neto por medio de pago en esta caja'))throw Error('Build is missing consolidated final cash receipts');
@@ -141,6 +142,7 @@ const url=site.ssl_url??site.url;
 const response=await fetch(url+'/?release='+Date.now(),{cache:'no-store'});const html=await response.text();const assetPath=html.match(/src="([^"]+\.js)"/)?.[1];
 if(!response.ok || !assetPath)throw Error('Published HTML unavailable');
 const asset=await fetch(new URL(assetPath,url));const bundle=await asset.text();
+if(!bundle.includes('management_report_data') || !bundle.includes('Reportes y estadísticas') || !bundle.includes('Franjas con mayor disponibilidad'))throw Error('Published site is missing management reports');
 if(!asset.ok || !bundle.includes(client.project) || Object.values(clients).some(other=>other.project!==client.project&&bundle.includes(other.project)) || !bundle.includes('cash_command') || !bundle.includes('current_account_enabled'))throw Error('Published site failed database/feature verification');
 if(!bundle.includes('un único resultado neto por medio de pago en esta caja'))throw Error('Published site is missing consolidated final cash receipts');
 if(!bundle.includes('booking_notification_feed') || !bundle.includes('player_create_booking'))throw Error('Published site is missing player booking notifications');
@@ -158,6 +160,10 @@ const expectedAppManifest=JSON.parse(readFileSync(join(outputDir,'manifest.json'
 if(JSON.stringify(appManifest)!==JSON.stringify(expectedAppManifest))throw Error('Published web app manifest belongs to another build');
 const workerResponse=await fetch(new URL('sw.js?check='+Date.now(),url));
 if(!workerResponse.ok || await workerResponse.text()!==readFileSync(join(outputDir,'sw.js'),'utf8'))throw Error('Published install worker differs from this build');
+for(const icon of ['notification-ball.png','notification-ball-badge.png']) {
+  const iconResponse=await fetch(new URL('pwa/'+icon,url));
+  if(!iconResponse.ok || !Buffer.from(await iconResponse.arrayBuffer()).equals(readFileSync(join(outputDir,'pwa',icon))))throw Error('Published notification icon differs from this build: '+icon);
+}
 let localUpdates=false;
 if(name==='padel-center') {
   const remote=await fetch(new URL(MANIFEST_NAME+'?check='+Date.now(),url),{cache:'no-store'});

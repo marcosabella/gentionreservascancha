@@ -24,7 +24,8 @@ self.addEventListener('push', event => {
   const announcementId = data?.type === 'player-announcement' && typeof data.announcementId === 'string' && /^[0-9a-f-]{36}$/i.test(data.announcementId) ? data.announcementId : null;
   event.waitUntil(self.registration.showNotification(typeof data?.title === 'string' ? data.title : ${JSON.stringify(name)}, {
     body: typeof data?.body === 'string' ? data.body : 'Tenés un nuevo aviso de reservas. Abrí la app para consultarlo.',
-    icon: new URL('./pwa/${brand.toUpperCase() === 'PURA VIDA' ? 'pura-vida' : 'padel-center'}-192.png', self.registration.scope).href,
+    icon: new URL('./pwa/notification-ball.png', self.registration.scope).href,
+    badge: new URL('./pwa/notification-ball-badge.png', self.registration.scope).href,
     tag: announcementId ? 'announcement-' + announcementId : bookingId ? 'reminder-' + bookingId + '-' + String(data.scheduledStart || '') : id ? 'booking-' + id : 'booking-notice',
     data: { notificationId: id, bookingId, announcementId },
   }));

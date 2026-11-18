@@ -32,6 +32,8 @@ export const bookingPushService = {
     }
     const registration = await pushRegistration();
     await registration.showNotification('Prueba de notificaciones', {
+      icon: new URL('./pwa/notification-ball.png', registration.scope).href,
+      badge: new URL('./pwa/notification-ball-badge.png', registration.scope).href,
       body: 'Este es un aviso de prueba de la app. Si lo ves, el dispositivo puede mostrar notificaciones.',
       tag: `booking-push-local-test-${Date.now()}`,
       data: { type: 'push-local-test' },

@@ -71,6 +71,11 @@ for (const [url, expected] of [['https://padelcenter.netlify.app/', 1], ['http:/
   if (expected) { assert.equal(calls[0][0], new URL('sw.js', url).href); assert.equal(calls[0][1].updateViaCache, 'none'); }
 }
 
+for (const [name,size] of [['notification-ball',192], ['notification-ball-badge',96]]) {
+  const png = readFileSync(`public/pwa/${name}.png`);
+  assert.equal(png.toString('ascii',1,4), 'PNG');
+  assert.equal(png.readUInt32BE(16), size); assert.equal(png.readUInt32BE(20), size);
+}
 for (const [brand, prefix] of [['PADEL CENTER', 'padel-center'], ['PURA VIDA', 'pura-vida']]) {
   const manifest = pwaManifest(brand);
   assert.equal(manifest.display, 'standalone'); assert.equal(manifest.start_url, './'); assert.equal(manifest.id, './');

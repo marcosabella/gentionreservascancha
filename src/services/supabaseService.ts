@@ -211,9 +211,7 @@ export const playersService = {
           phone: player.phone,
           gender: player.gender || null,
           category: player.category || null,
-          current_account_enabled: player.currentAccountEnabled,
-          total_bookings: player.totalBookings,
-          last_booking: player.lastBooking
+          current_account_enabled: player.currentAccountEnabled
         })
         .eq('id', id)
         .select()

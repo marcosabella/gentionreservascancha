@@ -20,6 +20,7 @@ import CourtEditForm from './components/CourtEditForm';
 import ConsumableList from './components/ConsumableList';
 import ConsumableEditForm from './components/ConsumableEditForm';
 import PlayerList from './components/PlayerList';
+import ManagementReports from './components/ManagementReports';
 import PlayerEditForm from './components/PlayerEditForm';
 import SalesList from './components/SalesList';
 import SaleForm from './components/SaleForm';
@@ -115,6 +116,9 @@ function App() {
 
   // UI state
   const [activeTab, setActiveTab] = useState('dashboard');
+  useEffect(() => {
+    if (activeTab === 'jugadores' && user) void refetchData();
+  }, [activeTab, refetchData, user?.id]);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [showCourtForm, setShowCourtForm] = useState(false);
   const [showConsumableForm, setShowConsumableForm] = useState(false);
@@ -1683,6 +1687,8 @@ function App() {
               onCategoriesUpdate={handleCategoriesUpdate}
             />
           )}
+
+          {activeTab === 'reportes' && can('reports.view') && <ManagementReports />}
 
           {/* Players (Admin only) */}
           {activeTab === 'jugadores' && can('players.view') && (

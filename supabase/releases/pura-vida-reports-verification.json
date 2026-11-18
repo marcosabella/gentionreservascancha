@@ -1,0 +1,14 @@
+{
+  "client": "pura-vida",
+  "project": "qsvdpdifygmzdawxfyqv",
+  "anonymous_access": false,
+  "incorrect_counters": 0,
+  "inventory_rpc": "inventory_save_product(uuid,jsonb)",
+  "migrations": 2,
+  "players": 198,
+  "players_with_bookings": 193,
+  "report_rpc": "management_report_data(date,date)",
+  "bookings_in_report": 243,
+  "players_in_report": 198,
+  "at": "2026-11-18T11:18:10.106Z"
+}

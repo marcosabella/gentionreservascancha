@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Menu, X, Calendar, Clock, MapPin, ShoppingCart, Users, CreditCard, Home,
   ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, Key, Shield,
-  Trophy, List, CalendarOff, Banknote, BellRing,
+  Trophy, List, CalendarOff, Banknote, BellRing, BarChart3,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { complexName, complexLogo } from '../config/complex';
@@ -52,6 +52,7 @@ const adminNavigation: (NavigationLink | NavigationGroup)[] = [
     ],
   },
   { id: 'torneos', label: 'Torneos', icon: Trophy },
+  { id: 'reportes', label: 'Reportes y estadísticas', icon: BarChart3 },
   {
     id: 'configuracion-menu', label: 'Configuración', icon: Settings,
     children: [
