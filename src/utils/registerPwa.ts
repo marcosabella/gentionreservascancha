@@ -1,3 +1,5 @@
+import { watchPwaUpdates } from './pwaUpdates';
+
 export function registerPwa() {
   // The XAMPP updater serves local versions directly; it must not be controlled
   // by a service worker installed from a previous local version.
@@ -16,6 +18,7 @@ export function registerPwa() {
   const register = () => {
     const base = new URL(import.meta.env.BASE_URL, document.baseURI);
     void navigator.serviceWorker.register(new URL('sw.js', base).href, { scope: base.pathname, updateViaCache: 'none' })
+      .then(registration => { if (registration) watchPwaUpdates(registration); })
       .catch(() => { /* Installation support must never block access to the system. */ });
   };
   if (document.readyState === 'complete') register();

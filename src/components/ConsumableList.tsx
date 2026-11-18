@@ -1,5 +1,7 @@
 import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
+import Pagination from './Pagination';
+import { usePagination } from '../hooks/usePagination';
 import { ShoppingCart, Edit, Trash2, Plus, Package, Utensils, Coffee, Tag, Dumbbell, Gamepad2, Shirt, Zap, Droplets, Apple, Sandwich, Pizza, Cookie, Wine, Beer, Gift, Wrench, Shield, Heart, Search, Calendar } from 'lucide-react';
 import { Booking, ConsumableItem, ConsumableCategory, Sale } from '../types';
 import { formatCurrency } from '../utils/timeSlots';
@@ -79,6 +81,10 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
     !normalizedSearch ||
     consumable.description.toLocaleLowerCase('es').includes(normalizedSearch) ||
     consumable.name.toLocaleLowerCase('es').includes(normalizedSearch)
+  );
+
+  const { paginatedItems, pagination } = usePagination(
+    filteredConsumables, JSON.stringify([searchTerm, dateFrom, dateTo])
   );
 
   const isDateInRange = (date: string) =>
@@ -255,7 +261,7 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredConsumables.map(consumable => (
+              {paginatedItems.map(consumable => (
                 <tr key={consumable.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -320,6 +326,8 @@ const ConsumableList: React.FC<ConsumableListProps> = ({
             </tbody>
           </table>
         </div>
+
+        <Pagination {...pagination} />
 
         {filteredConsumables.length === 0 && (
           <div className="text-center py-12">

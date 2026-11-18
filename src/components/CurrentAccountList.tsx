@@ -1,5 +1,7 @@
 import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
+import Pagination from './Pagination';
+import { usePagination } from '../hooks/usePagination';
 import { CreditCard, Plus, Search, TrendingDown, TrendingUp, Eye, DollarSign, Users } from 'lucide-react';
 import { PlayerProfile, CurrentAccountEntry, PlayerCurrentAccount } from '../types';
 import { formatCurrency, formatDate } from '../utils/timeSlots';
@@ -55,6 +57,10 @@ const CurrentAccountList: React.FC<CurrentAccountListProps> = ({
     
     return matchesSearch && matchesBalance;
   });
+
+  const { paginatedItems, pagination } = usePagination(
+    filteredAccounts, JSON.stringify([searchTerm, filterBalance])
+  );
 
   // Estadísticas
   const totalDebt = playerAccounts.reduce((sum, account) => 
@@ -205,7 +211,7 @@ const CurrentAccountList: React.FC<CurrentAccountListProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAccounts.map(account => (
+              {paginatedItems.map(account => (
                 <tr key={account.playerId} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -282,6 +288,8 @@ const CurrentAccountList: React.FC<CurrentAccountListProps> = ({
             </tbody>
           </table>
         </div>
+
+        <Pagination {...pagination} />
 
         {filteredAccounts.length === 0 && (
           <div className="text-center py-12">

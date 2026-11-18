@@ -1,5 +1,7 @@
 import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
+import Pagination from './Pagination';
+import { usePagination } from '../hooks/usePagination';
 import { CreditCard, Plus, Search, Calendar, Filter, Eye, Trash2, CreditCard as Edit } from 'lucide-react';
 import { Sale, Booking } from '../types';
 import { formatCurrency, formatDate } from '../utils/timeSlots';
@@ -27,6 +29,7 @@ const SalesList: React.FC<SalesListProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'registered' | 'guest'>('all');
+  const [saleTypeFilter, setSaleTypeFilter] = useState<'all' | Sale['type']>('all');
   const [paymentFilter, setPaymentFilter] = useState<SalesPaymentFilter>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -92,11 +95,15 @@ const SalesList: React.FC<SalesListProps> = ({
     
     const matchesType = filterType === 'all' || (sale.distribution ? sale.distribution.participants.some(person => person.registered === (filterType === 'registered')) : sale.customerType === filterType);
     const matchesDate = !invalidPeriod && isSaleInPeriod(sale.date, dateFrom, dateTo);
+    const matchesSaleType = saleTypeFilter === 'all' || sale.type === saleTypeFilter;
     
-    return matchesSearch && matchesType && matchesDate && matchesSalePayment(sale, paymentFilter);
+    return matchesSearch && matchesType && matchesSaleType && matchesDate && matchesSalePayment(sale, paymentFilter);
   });
 
   const summary = summarizeSales(filteredSales);
+  const { paginatedItems, pagination } = usePagination(
+    filteredSales, JSON.stringify([searchTerm, filterType, saleTypeFilter, paymentFilter, dateFrom, dateTo])
+  );
 
   const getSaleTypeLabel = (sale: Sale) => {
     return sale.type === 'booking' ? 'Turno' : 'Venta Directa';
@@ -126,56 +133,75 @@ const SalesList: React.FC<SalesListProps> = ({
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 items-end gap-4">
-        <div className="relative">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-0 basis-full grow sm:basis-44">
+          <label htmlFor="sales-search" className="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+          <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
+            id="sales-search"
             type="text"
             placeholder="Buscar por cliente o cancha..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+            className="w-full min-w-0 pl-10 pr-2 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
           />
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Filter className="w-5 h-5 text-gray-500" />
+        <div className="min-w-0 basis-full grow sm:basis-48">
+          <label htmlFor="sales-customer-type" className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+          <div className="relative">
+          <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
           <select
+            id="sales-customer-type"
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as 'all' | 'registered' | 'guest')}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+            className="w-full min-w-0 pl-8 pr-2 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
           >
             <option value="all">Todos los clientes</option>
             <option value="registered">Jugadores registrados</option>
             <option value="guest">Clientes ocasionales</option>
           </select>
+          </div>
         </div>
 
-        <div>
+        <div className="min-w-0 basis-full grow sm:basis-32">
+          <label htmlFor="sales-type" className="block text-sm font-medium text-gray-700 mb-1">Tipo de venta</label>
+          <select id="sales-type" value={saleTypeFilter}
+            onChange={(e) => setSaleTypeFilter(e.target.value as 'all' | Sale['type'])}
+            className="w-full min-w-0 px-2 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+            <option value="all">Todas</option>
+            <option value="direct">Venta directa</option>
+            <option value="booking">Turnos</option>
+          </select>
+        </div>
+
+        <div className="min-w-0 basis-full grow sm:basis-36">
           <label htmlFor="sales-payment-method" className="block text-sm font-medium text-gray-700 mb-1">Medio de pago</label>
           <select id="sales-payment-method" value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value as SalesPaymentFilter)}
-            className="w-full min-w-0 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+            className="w-full min-w-0 px-2 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
             <option value="all">Todos los medios</option>
             {salesPaymentMethods.map(method => <option key={method.id} value={method.id}>{method.label}</option>)}
           </select>
         </div>
-        <div>
+        <div className="min-w-0 basis-full grow sm:basis-36">
           <label htmlFor="sales-date-from" className="block text-sm font-medium text-gray-700 mb-1">Fecha desde</label>
           <input id="sales-date-from" type="date" value={dateFrom} max={dateTo || undefined}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" />
+            className="w-full min-w-0 px-2 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" />
         </div>
-        <div>
+        <div className="min-w-0 basis-full grow sm:basis-36">
           <label htmlFor="sales-date-to" className="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>
           <input id="sales-date-to" type="date" value={dateTo} min={dateFrom || undefined}
             onChange={(e) => setDateTo(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" />
+            className="w-full min-w-0 px-2 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" />
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
         <p className="text-gray-600">{filteredSales.length} ventas y turnos encontrados. Las fechas incluyen ambos días.</p>
-        <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); setSearchTerm(''); setFilterType('all'); setPaymentFilter('all'); }}
+        <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); setSearchTerm(''); setFilterType('all'); setSaleTypeFilter('all'); setPaymentFilter('all'); }}
           className="font-medium text-green-700 hover:text-green-800">Limpiar filtros</button>
       </div>
       {invalidPeriod && <p role="alert" className="text-sm text-red-600">La fecha desde debe ser anterior o igual a la fecha hasta.</p>}
@@ -224,7 +250,7 @@ const SalesList: React.FC<SalesListProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSales.map(sale => {
+              {paginatedItems.map(sale => {
                 const payments = getSalePaymentTotals(sale);
                 return (
                 <tr key={sale.id} className="hover:bg-gray-50">
@@ -306,14 +332,16 @@ const SalesList: React.FC<SalesListProps> = ({
           </table>
         </div>
 
+        <Pagination {...pagination} />
+
         {filteredSales.length === 0 && (
           <div className="text-center py-12">
             <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || filterType !== 'all' || paymentFilter !== 'all' || (dateFrom || dateTo) ? 'No se encontraron ventas' : 'No hay ventas o turnos registrados'}
+              {searchTerm || filterType !== 'all' || saleTypeFilter !== 'all' || paymentFilter !== 'all' || (dateFrom || dateTo) ? 'No se encontraron ventas' : 'No hay ventas o turnos registrados'}
             </h3>
             <p className="text-gray-600">
-              {searchTerm || filterType !== 'all' || paymentFilter !== 'all' || (dateFrom || dateTo) ? 'Intenta con otros filtros' : 'Las ventas directas y turnos finalizados aparecerán aquí'}
+              {searchTerm || filterType !== 'all' || saleTypeFilter !== 'all' || paymentFilter !== 'all' || (dateFrom || dateTo) ? 'Intenta con otros filtros' : 'Las ventas directas y turnos finalizados aparecerán aquí'}
             </p>
           </div>
         )}

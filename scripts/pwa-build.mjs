@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export function pwaManifest(brand) {
   const puraVida = brand.toUpperCase() === 'PURA VIDA';
   const id = puraVida ? 'pura-vida' : 'padel-center';
@@ -10,10 +12,11 @@ export function pwaManifest(brand) {
   };
 }
 
-export function pwaWorker(brand) {
+export function pwaWorker(brand, version = 'development') {
   const name = brand.toUpperCase() === 'PURA VIDA' ? 'Pura Vida' : 'Padel Center';
   const offline = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${name} · Sin conexión</title><style>body{margin:0;padding:24px;min-height:85vh;display:grid;place-items:center;background:#f8fafc;color:#17251e;font:16px system-ui}main{max-width:420px;padding:24px;background:white;border:1px solid #d1d5db;border-radius:16px}h1{font-size:24px}p{line-height:1.6}a{display:inline-block;margin-top:12px;padding:12px 18px;border-radius:8px;background:#166534;color:white;text-decoration:none}</style></head><body><main><h1>Necesitás conexión a Internet</h1><p>Conectate para ver tus reservas y movimientos o realizar operaciones en ${name}.</p><a href="./">Volver a intentar</a></main></body></html>`;
-  return `// Navigation is always requested from the network. No account or reservation data is cached.
+  return `// Build: ${version}
+// Navigation is always requested from the network. No account or reservation data is cached.
 self.addEventListener('install', event => { event.waitUntil(self.skipWaiting()); });
 self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
 self.addEventListener('push', event => {
@@ -74,9 +77,14 @@ export default function pwaBuild(brand) {
         { tag: 'meta', attrs: { name: 'apple-mobile-web-app-status-bar-style', content: 'default' }, injectTo: 'head' },
       ];
     },
-    generateBundle() {
+    generateBundle(_options, bundle) {
+      const hash = createHash('sha256');
+      for (const [fileName, output] of Object.entries(bundle).sort(([a], [b]) => a.localeCompare(b))) {
+        hash.update(fileName);
+        hash.update(output.type === 'chunk' ? output.code : output.source);
+      }
       this.emitFile({ type: 'asset', fileName: 'manifest.json', source: JSON.stringify(manifest, null, 2) + '\n' });
-      this.emitFile({ type: 'asset', fileName: 'sw.js', source: pwaWorker(brand) });
+      this.emitFile({ type: 'asset', fileName: 'sw.js', source: pwaWorker(brand, hash.digest('hex')) });
     },
   };
 }

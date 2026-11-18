@@ -1,8 +1,14 @@
 import { ActionButton } from '../config/AccessContext';
 import React, { useState } from 'react';
+import Pagination from './Pagination';
+import { usePagination } from '../hooks/usePagination';
 import { Users, CreditCard as Edit, Trash2, Plus, Search, Mail, Phone, Calendar } from 'lucide-react';
 import { PlayerProfile } from '../types';
-import { formatDate } from '../utils/timeSlots';
+
+const formatPlayerDate = (date: string): string => {
+  const [year, month, day] = date.split('T')[0].split('-');
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+};
 
 interface PlayerListProps {
   players: PlayerProfile[];
@@ -24,6 +30,8 @@ const PlayerList: React.FC<PlayerListProps> = ({
     player.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     player.phone.includes(searchTerm)
   );
+
+  const { paginatedItems, pagination } = usePagination(filteredPlayers, searchTerm);
 
   return (
     <div className="space-y-6">
@@ -124,7 +132,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredPlayers.map(player => (
+              {paginatedItems.map(player => (
                 <tr key={player.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -134,7 +142,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">{player.name}</div>
                         <div className="text-sm text-gray-500">
-                          Registrado: {formatDate(player.createdAt.split('T')[0])}
+                          Registrado: {formatPlayerDate(player.createdAt)}
                         </div>
                       </div>
                     </div>
@@ -169,7 +177,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                       </div>
                       {player.lastBooking && (
                         <div className="text-sm text-gray-500">
-                          Última: {formatDate(player.lastBooking)}
+                          Última: {formatPlayerDate(player.lastBooking)}
                         </div>
                       )}
                     </div>
@@ -195,6 +203,8 @@ const PlayerList: React.FC<PlayerListProps> = ({
             </tbody>
           </table>
         </div>
+
+        <Pagination {...pagination} />
 
         {filteredPlayers.length === 0 && (
           <div className="text-center py-12">
